@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-To close Rucan and keep your sessions running, press Ctrl+G, type `/exit` and press Enter, then press Enter again in the exit screen. You can also use Q in the menu to open the exit screen. Ctrl+G opens the workspace menu. P pins a session, D closes the UI and keeps sessions running, H selects a host, and E opens the file explorer. Arrow keys, digits and sidebar clicks switch workspaces. T opens optional tmux actions, and S browses scrollback. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`. Local and remote configuration examples follow.
+Type `exit` at the shell prompt to close the current shell. To open Rucan's exit screen, press Ctrl+G and then Q, or enter `/exit` in the menu. Press Enter on the exit screen to keep sessions running. Ctrl+G and F12 open the workspace menu. On Mac keyboards with media keys, press Fn+F12 to send F12. P pins a session, D closes the UI and keeps sessions running, H selects a host, and E opens the file explorer. Arrow keys, digits and sidebar clicks switch workspaces. T opens optional tmux actions, and S browses scrollback. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`. Local and remote configuration examples follow.
 
 ```yaml
 version: 1
@@ -27,6 +27,10 @@ workspaces:
     cwd: "~/project"
     persistence: persistent
 ```
+
+The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. If the list is empty, use Ctrl+G, then N to open a new workspace.
+
+Inside a managed shell, run `rucan` to see session commands. Use `npx rucan@latest` if you run Rucan through npm without a global installation.
 
 `pnpm dev config` validates the configuration and prints its path. The npm package installs the `rucan` command. After the first release:
 

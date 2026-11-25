@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Removed exited sessions from the numbered workspace list and switched to the next running workspace.
+- Added F12 as an alternative menu shortcut and clarified how to quit the shell or the UI.
+- Showed session commands when invoking Rucan from a managed shell without arguments.
+
 ## 0.1.1
 
 - Made workspace navigation and exit actions easier to find.
