@@ -641,7 +641,7 @@ class InteractiveWorkspace {
     }
     this.#screen.draw({
       layout: this.#layout,
-      header: `ssui  │  ${title}  │  ${this.#status || (this.#snapshot?.state === "running" ? (this.#host ? `${this.#host} connected` : "Local agent connected") : "Session exited")}`,
+      header: `ssux  │  ${title}  │  ${this.#status || (this.#snapshot?.state === "running" ? (this.#host ? `${this.#host} connected` : "Local agent connected") : "Session exited")}`,
       footer:
         this.#update && this.#mode !== "exit"
           ? `${footer} · U Review v${this.#update}`

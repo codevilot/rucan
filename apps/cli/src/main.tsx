@@ -12,12 +12,12 @@ import { WorkspaceView } from "./ui/workspace.js";
 
 async function main(args: readonly string[]): Promise<void> {
   if (args.length === 1 && args[0] === "--version") {
-    console.log(`ssui ${version}`);
+    console.log(`ssux ${version}`);
     return;
   }
   if (args.length === 1 && args[0] === "--help") {
     console.log(
-      "Usage: ssui [attach | remote | tmux | update | doctor | config | ls | status | new | pin | unpin | detach | rename | kill | shutdown | --fixture | --help | --version]\n\nOpen the workspace UI or control a local terminal session.",
+      "Usage: ssux [attach | remote | tmux | update | doctor | config | ls | status | new | pin | unpin | detach | rename | kill | shutdown | --fixture | --help | --version]\n\nOpen the workspace UI or control a local terminal session.",
     );
     return;
   }
@@ -56,7 +56,7 @@ async function main(args: readonly string[]): Promise<void> {
     return;
   }
   if (args.length !== 1 || args[0] !== "--fixture")
-    throw new Error("Unknown arguments. Run ssui --help.");
+    throw new Error("Unknown arguments. Run ssux --help.");
   if (!process.stdin.isTTY || !process.stdout.isTTY)
     throw new Error("The workspace UI requires a terminal.");
   const config = await loadConfig();
@@ -67,7 +67,7 @@ async function main(args: readonly string[]): Promise<void> {
 
 main(process.argv.slice(2)).catch((error: unknown) => {
   console.error(
-    `ssui: ${error instanceof Error ? error.message : String(error)}`,
+    `ssux: ${error instanceof Error ? error.message : String(error)}`,
   );
   process.exitCode = 1;
 });

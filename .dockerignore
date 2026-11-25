@@ -2,8 +2,8 @@
 !Cargo.toml
 !Cargo.lock
 !crates/
-!crates/ssui-agent/
-!crates/ssui-agent/**
+!crates/ssux-agent/
+!crates/ssux-agent/**
 !packages/
 !packages/protocol/
 !packages/protocol/**

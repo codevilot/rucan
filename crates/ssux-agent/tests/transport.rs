@@ -1,4 +1,4 @@
-use ssui_agent::framing::{read_frame, write_frame};
+use ssux_agent::framing::{read_frame, write_frame};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -15,7 +15,7 @@ impl Drop for Service {
 }
 
 fn command(path: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_ssui-agent"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_ssux-agent"));
     command.arg("serve").arg("--socket").arg(path);
     command
 }

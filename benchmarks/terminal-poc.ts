@@ -6,15 +6,15 @@ import { performance } from "node:perf_hooks";
 import xterm from "@xterm/headless";
 
 const markers = {
-  bash: "SSUI-BASH",
-  zsh: "SSUI-ZSH",
-  vim: "SSUI-VIM",
-  rapid: "SSUI-LINE 09999",
+  bash: "SSUX-BASH",
+  zsh: "SSUX-ZSH",
+  vim: "SSUX-VIM",
+  rapid: "SSUX-LINE 09999",
 };
 type Probe = keyof typeof markers;
 const probes: Record<Probe, readonly string[]> = {
-  bash: ["bash", "--noprofile", "--norc", "-c", "printf 'SSUI-BASH\\n'"],
-  zsh: ["zsh", "-f", "-c", "printf 'SSUI-ZSH\\n'"],
+  bash: ["bash", "--noprofile", "--norc", "-c", "printf 'SSUX-BASH\\n'"],
+  zsh: ["zsh", "-f", "-c", "printf 'SSUX-ZSH\\n'"],
   vim: [
     "vim",
     "-Nu",
@@ -23,7 +23,7 @@ const probes: Record<Probe, readonly string[]> = {
     "NONE",
     "-n",
     "-c",
-    "call setline(1, 'SSUI-VIM')",
+    "call setline(1, 'SSUX-VIM')",
     "-c",
     "redraw!",
     "-c",
@@ -34,7 +34,7 @@ const probes: Record<Probe, readonly string[]> = {
   rapid: [
     "sh",
     "-c",
-    'i=0; while [ "$i" -lt 10000 ]; do printf \'SSUI-LINE %05d\\n\' "$i"; i=$((i+1)); done',
+    'i=0; while [ "$i" -lt 10000 ]; do printf \'SSUX-LINE %05d\\n\' "$i"; i=$((i+1)); done',
   ],
 };
 

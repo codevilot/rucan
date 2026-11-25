@@ -24,25 +24,25 @@ def read_until(master, marker, seconds=8):
 
 
 def run():
-    with tempfile.TemporaryDirectory(prefix="ssui-e2e-") as sandbox:
+    with tempfile.TemporaryDirectory(prefix="ssux-e2e-") as sandbox:
         path = Path(sandbox)
         path.chmod(0o700)
         env = dict(os.environ, TERM="xterm-256color", XDG_CONFIG_HOME=sandbox)
         env["XDG_CACHE_HOME"] = str(path / "cache")
-        env["SSUI_AGENT_SOCKET"] = str(path / "agent.sock")
-        env["SSUI_AGENT_BINARY"] = str(Path("target/debug/ssui-agent").resolve())
+        env["SSUX_AGENT_SOCKET"] = str(path / "agent.sock")
+        env["SSUX_AGENT_BINARY"] = str(Path("target/debug/ssux-agent").resolve())
         node = ["node", "apps/cli/dist/main.js"]
-        config_dir = path / "ssui"
+        config_dir = path / "ssux"
         config_dir.mkdir(mode=0o700)
         project = path / "project"
         project.mkdir()
-        (project / "README.md").write_text("SSUI-FILE-PREVIEW\n")
+        (project / "README.md").write_text("SSUX-FILE-PREVIEW\n")
         (config_dir / "config.yaml").write_text(
             'version: 1\nupdates: {check_on_startup: false}\n'
             f'workspaces: [{{name: tty-test, cwd: "{project}", command: "/bin/sh"}}]\n'
         )
         with subprocess.Popen(
-            [env["SSUI_AGENT_BINARY"], "serve", "--socket", env["SSUI_AGENT_SOCKET"]],
+            [env["SSUX_AGENT_BINARY"], "serve", "--socket", env["SSUX_AGENT_SOCKET"]],
             env=env,
         ) as agent:
             try:
@@ -73,7 +73,7 @@ def exercise(node, env):
         os.write(master, b"e")
         read_until(master, b"README.md")
         os.write(master, b"\r")
-        read_until(master, b"SSUI-FILE-PREVIEW")
+        read_until(master, b"SSUX-FILE-PREVIEW")
         os.write(master, b"\x1b")
         read_until(master, b"P Pin")
         os.write(master, b"\x07")

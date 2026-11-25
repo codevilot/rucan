@@ -15,9 +15,9 @@ import { decodeWorkspace } from "../apps/cli/src/terminal/workspaces.js";
 
 const exec = promisify(execFile);
 const quietInterval = 2000;
-const soakSeconds = Number(process.env.SSUI_BENCH_SOAK_SECONDS ?? "0");
+const soakSeconds = Number(process.env.SSUX_BENCH_SOAK_SECONDS ?? "0");
 if (!Number.isInteger(soakSeconds) || soakSeconds < 0 || soakSeconds > 86400) {
-  throw new Error("SSUI_BENCH_SOAK_SECONDS must be between 0 and 86400");
+  throw new Error("SSUX_BENCH_SOAK_SECONDS must be between 0 and 86400");
 }
 
 async function descriptorCount(pid: number): Promise<number> {
@@ -243,14 +243,14 @@ await exec("cargo", [
   "--release",
   "-q",
   "-p",
-  "ssui-agent",
+  "ssux-agent",
 ]);
 for (const sessions of [1, 10, 50]) {
-  const directory = await mkdtemp(join(tmpdir(), "ssui-bench-"));
+  const directory = await mkdtemp(join(tmpdir(), "ssux-bench-"));
   const path = join(directory, "agent.sock");
   const start = performance.now();
   const daemon = spawn(
-    "target/release/ssui-agent",
+    "target/release/ssux-agent",
     ["serve", "--socket", path],
     { stdio: ["ignore", "ignore", "inherit"] },
   );

@@ -23,7 +23,7 @@ export async function runTmuxCommand(
     )
   ) {
     throw new Error(
-      "Usage: ssui tmux ls | tmux open [--host <host>] <session> | tmux new [--host <host>]",
+      "Usage: ssux tmux ls | tmux open [--host <host>] <session> | tmux new [--host <host>]",
     );
   }
   if (action !== "ls" && (!process.stdin.isTTY || !process.stdout.isTTY))

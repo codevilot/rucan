@@ -19,6 +19,8 @@ Set `XDG_CONFIG_HOME` to an absolute temporary directory to try first launch wit
 
 If the pnpm shim is broken, run commands through `npm exec --yes --package=pnpm@10.32.1 -- pnpm`. If the interface does not fit, enlarge the terminal to at least 48 columns by 12 rows.
 
-After `pnpm build`, try `pnpm dev new`, `pnpm dev ls`, and `pnpm dev pin <id>`. The local CLI starts the development agent when appropriate. Use `SSUI_AGENT_SOCKET` with a private directory to isolate a test and `SSUI_AGENT_BINARY` to choose a development binary. The per-user socket is under `XDG_RUNTIME_DIR/ssui` when configured or `/tmp/ssui-<uid>`. Use `pnpm dev --fixture` for the Ink layout fixture. After building, run `python3 tests/e2e/local_tty.py` for the live workspace and Vim smoke test.
+After `pnpm build`, try `pnpm dev new`, `pnpm dev ls`, and `pnpm dev pin <id>`. The local CLI starts the development agent when appropriate. Use `SSUX_AGENT_SOCKET` with a private directory to isolate a test and `SSUX_AGENT_BINARY` to choose a development binary. The per-user socket is under `XDG_RUNTIME_DIR/ssux` when configured or `/tmp/ssux-<uid>`. Use `pnpm dev --fixture` for the Ink layout fixture. After building, run `python3 tests/e2e/local_tty.py` for the live workspace and Vim smoke test.
 
 Run `pnpm poc` for the original xterm.js reference probe. To validate isolated OpenSSH and tmux, build both remote Docker images and the agent artifact using [.github/workflows/ci.yml](../.github/workflows/ci.yml), then run the two `remote_ssh.py` modes. The tests generate disposable host and client keys.
+
+The rename changes the default config, socket, cache and remote installation paths. If you used a pre-release build, copy any settings you want to keep from the old config into the new one. Keep the pre-release client available to reattach to its running sessions.
