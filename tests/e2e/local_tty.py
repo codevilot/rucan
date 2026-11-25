@@ -34,6 +34,18 @@ def run():
         env["XDG_CACHE_HOME"] = str(path / "cache")
         env["RUCAN_AGENT_SOCKET"] = str(path / "agent.sock")
         env["RUCAN_AGENT_BINARY"] = str(Path("target/debug/rucan-agent").resolve())
+        bin_dir = path / "bin"
+        bin_dir.mkdir()
+        ssh_fixture = bin_dir / "ssh"
+        ssh_fixture.write_text(
+            '#!/bin/sh\n'
+            'if [ "$*" = "-o StrictHostKeyChecking=ask -- ops@192.0.2.7" ]; then\n'
+            "  printf 'SSH-ARGV-ok\\n'\n"
+            "  read -r input\n"
+            "fi\n"
+        )
+        ssh_fixture.chmod(0o700)
+        env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
         node = ["node", "apps/cli/dist/main.js"]
         config_dir = path / "rucan"
         config_dir.mkdir(mode=0o700)
@@ -70,7 +82,11 @@ def exercise(node, env):
     original = termios.tcgetattr(slave)
     process = subprocess.Popen(node, env=env, stdin=slave, stdout=slave, stderr=slave)
     try:
-        assert name + b" v" + number in read_until(master, b"ctrl+g Menu")
+        frame = read_until(master, b"ctrl+g Menu")
+        assert name + b" v" + number in frame
+        assert frame.count(b"v" + number) == 2
+        assert b"+ New workspace" in frame
+        assert "↗ SSH connect".encode() in frame
         for rows, cols, terminal_cols in [(24, 40, 40), (24, 100, 75)]:
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             process.send_signal(signal.SIGWINCH)
@@ -84,9 +100,11 @@ def exercise(node, env):
         read_until(master, b"Rucan session commands")
 
         os.write(master, b"\x07")
-        read_until(master, b"P Pin")
+        read_until(master, b"U Check for updates")
         os.write(master, b"e")
-        read_until(master, b"README.md")
+        data = read_until(master, b"Esc Menu")
+        if b"README.md" not in data:
+            read_until(master, b"README.md")
         os.write(master, b"\r")
         read_until(master, b"RUCAN-FILE-PREVIEW")
         os.write(master, b"\x1b")
@@ -104,7 +122,7 @@ def exercise(node, env):
         os.write(master, b"\x07")
         read_until(master, b"P Pin")
         os.write(master, b"p")
-        read_until(master, "◆".encode())
+        read_until(master, "›1 ◆ tty-test".encode())
         os.write(master, b"/")
         read_until(master, b"Command  /")
         os.write(master, b"exit\r")
@@ -152,12 +170,29 @@ def exercise_session_exit(node, env):
         read_until(master, b"NEXT-ready")
         os.write(master, b"exit\r")
         read_until(master, b"No active workspace")
-        os.write(master, b"\x1b[24~n")
+        os.write(master, b"\x1b[<0;3;22M")
         read_until(master, b"Default shell")
         os.write(master, b"\r")
         read_until(master, "›1 ◇ tty-test".encode())
         os.write(master, b"printf 'NEW-%s\\n' ready\r")
         read_until(master, b"NEW-ready")
+        os.write(master, b"\x1b ")
+        read_until(master, b"Rucan commands")
+        os.write(master, b"ssh")
+        frame = read_until(master, "ssh▏".encode())
+        assert "›  SSH connect".encode() in frame
+        os.write(master, b"\x1b")
+        read_until(master, b"Alt+Space Search")
+        os.write(master, b"\x1b[24~ ")
+        read_until(master, b"Rucan commands")
+        os.write(master, b"\x1b")
+        read_until(master, b"Alt+Space Search")
+        os.write(master, b"\x1b[<0;3;23M")
+        read_until(master, b"Enter Connect")
+        os.write(master, b"ops@192.0.2.7")
+        read_until(master, b"Host  ops@192.0.2.7")
+        os.write(master, b"\r")
+        read_until(master, b"SSH-ARGV-ok")
         os.write(master, b"\x07")
         read_until(master, b"P Pin")
         os.write(master, b"d")

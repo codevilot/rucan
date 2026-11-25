@@ -252,7 +252,19 @@ async fn stale_socket_recovers_and_shutdown_refuses_active_children() {
         .expect("private test directory");
     let path = directory.path().join("agent.sock");
     drop(std::os::unix::net::UnixListener::bind(&path).expect("simulate a stale socket"));
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))
+        .expect("mark the stale socket before startup");
     let mut daemon = Service(command(&path).spawn().expect("start agent"));
+    // Wait for the daemon to replace the stale socket and secure the new listener.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !std::fs::metadata(&path)
+            .is_ok_and(|entry| entry.permissions().mode() & 0o777 == 0o600)
+        {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("stale socket is replaced");
     let mut client = connect(&path).await;
     handshake(&mut client).await;
     request(

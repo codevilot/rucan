@@ -1,5 +1,9 @@
 # Remote workspaces
 
+The **SSH connect** button opens an interactive OpenSSH tab. Enter an IP address, alias, or `user@host`. The agent for the current workspace host runs OpenSSH, so that host's SSH configuration and credentials apply. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive.
+
+## Agent-backed remote workspaces
+
 Use a host alias from your OpenSSH configuration. Establish trust with OpenSSH before opening the workspace. RUCAN uses non-interactive SSH with the user's existing alias, keys, ProxyJump, agent and host verification policy.
 
 ```sh

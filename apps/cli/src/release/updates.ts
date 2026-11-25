@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { compareVersions, stableVersion, version } from "./version.js";
 
-const registry = "https://registry.npmjs.org";
+export const registry = "https://registry.npmjs.org";
 const ttl = 6 * 60 * 60 * 1000;
 
 interface Cache {
@@ -120,7 +120,9 @@ export async function skipUpdate(target: string): Promise<void> {
   await save("skip-version", target + "\n");
 }
 
-async function installMethod(): Promise<"npm" | "pnpm" | undefined> {
+async function installMethod(): Promise<
+  { manager: "npm" | "pnpm"; root: string } | undefined
+> {
   const packageDirectory = await realpath(
     fileURLToPath(new URL("../../", import.meta.url)),
   );
@@ -137,9 +139,9 @@ async function installMethod(): Promise<"npm" | "pnpm" | undefined> {
             timeout: 2000,
           },
         );
-        return (await realpath(join(stdout.trim(), "rucan"))) ===
-          packageDirectory
-          ? manager
+        const root = stdout.trim();
+        return (await realpath(join(root, "rucan"))) === packageDirectory
+          ? { manager, root }
           : undefined;
       } catch {
         return undefined;
@@ -149,7 +151,7 @@ async function installMethod(): Promise<"npm" | "pnpm" | undefined> {
   return results.find((manager) => manager !== undefined);
 }
 
-export async function installUpdate(target: string): Promise<void> {
+export async function installUpdate(target: string): Promise<string> {
   if (!stableVersion(target) || compareVersions(target, version) <= 0)
     throw new Error("Expected a newer stable version");
   const method = await installMethod();
@@ -157,19 +159,21 @@ export async function installUpdate(target: string): Promise<void> {
     throw new Error(
       "This installation is managed externally. Install the update using the original installation method.",
     );
+  const { manager, root } = method;
   const args = [
-    method === "pnpm" ? "add" : "install",
+    manager === "pnpm" ? "add" : "install",
     "--global",
     "--ignore-scripts",
     `--registry=${registry}`,
     `rucan@${target}`,
   ];
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(method, args, { stdio: "inherit" });
+    const child = spawn(manager, args, { stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code) => {
       if (code === 0) resolve();
       else reject(new Error(`Update exited with status ${code}`));
     });
   });
+  return join(root, "rucan", "dist", "main.js");
 }

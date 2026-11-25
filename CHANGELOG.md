@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+- Added colored workspace tabs, sidebar actions, navigation hints, and a footer version badge.
+- Added a searchable command palette accessible with Alt+Space or Space in the workspace menu.
+- Added sidebar buttons for new workspaces and interactive OpenSSH tabs.
+- Added an on-demand update check in the workspace menu and reopened the active session after updating.
+
 ## 0.1.2
 
 - Removed exited sessions from the numbered workspace list and switched to the next running workspace.

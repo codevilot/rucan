@@ -6,4 +6,6 @@ The threat model treats SSH hosts, filesystem names and PTY output as potentiall
 
 Use OpenSSH host key verification, private same-user Unix sockets, no public listener and no credential storage. Socket paths and their parent directory require ownership and permission checks. Same-user processes and host administrators are outside the socket isolation guarantee. Installation requires explicit approval and an authenticated binary manifest. Never overwrite an active incompatible agent automatically.
 
+The interactive SSH tab validates the destination and passes it to OpenSSH as a single argument after `--`. OpenSSH asks for confirmation for unknown host keys and handles authentication in the session PTY.
+
 See [SECURITY.md](../SECURITY.md) for reporting guidance.

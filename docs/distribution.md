@@ -12,6 +12,8 @@ Packaged clients can run `rucan remote install <alias>` and transfer the matchin
 
 The startup update check is asynchronous and caches the stable registry response. The user can disable it in configuration, skip a version, or use `rucan update --apply` to approve a detected global npm or pnpm update. The updater delegates package installation to the detected manager and does not request elevated privileges.
 
+Press U in the workspace menu to check for an update or review an available release. Approving the update reopens the selected session if it is still running. Global installations use their package manager. When launched through npx, Rucan downloads and runs the approved version through npm exec.
+
 The workspace header shows the running CLI version. Use `rucan --version` to print it from the shell. Use `rucan update` to check for a newer stable release immediately. If you run Rucan through npx, use `npx --prefer-online rucan@latest` to refresh the registry lookup and launch the latest release.
 
 ## Maintainer CLI
