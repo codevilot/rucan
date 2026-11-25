@@ -29,7 +29,7 @@ export function footerFor(
     case "history":
       return `Esc Menu · ↑↓ Scroll · History ${scrollback} lines back`;
     case "update":
-      return "Esc Terminal · 1 Update now · 2 Continue · 3 Skip this version";
+      return "Esc Continue · 1 Update · 2 Continue · 3 Skip version";
     case "tmux":
       return "Esc Menu · ↑↓ Select · Enter Attach · N New tmux session";
     case "explorer":

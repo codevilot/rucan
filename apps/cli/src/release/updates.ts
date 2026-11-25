@@ -15,8 +15,6 @@ import { promisify } from "node:util";
 import { compareVersions, stableVersion, version } from "./version.js";
 
 export const registry = "https://registry.npmjs.org";
-const ttl = 6 * 60 * 60 * 1000;
-
 interface Cache {
   checkedAt: number;
   latest?: string;
@@ -93,26 +91,27 @@ async function fetchLatest(): Promise<string | undefined> {
 }
 
 export async function availableUpdate(
-  force = false,
+  includeSkipped = false,
 ): Promise<string | undefined> {
   const cached = await readCache();
   let latest = cached?.latest;
-  if (force || !cached || Date.now() - cached.checkedAt > ttl) {
-    try {
-      latest = await fetchLatest();
+  try {
+    const published = await fetchLatest();
+    if (published) {
+      latest = published;
       await save(
         "updates.json",
         JSON.stringify({ checkedAt: Date.now(), latest }),
       ).catch(() => {});
-    } catch {
-      // An outage should still allow a previously cached update to be displayed.
     }
+  } catch {
+    // An outage should still allow a previously cached update to be displayed.
   }
   if (!latest || compareVersions(latest, version) <= 0) return undefined;
   const skip = await readFile(join(directory(), "skip-version"), "utf8").catch(
     () => "",
   );
-  return !force && skip.trim() === latest ? undefined : latest;
+  return !includeSkipped && skip.trim() === latest ? undefined : latest;
 }
 
 export async function skipUpdate(target: string): Promise<void> {
