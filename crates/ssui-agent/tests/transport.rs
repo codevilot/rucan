@@ -173,7 +173,7 @@ async fn socket_disconnect_preserves_pid_pin_and_terminal_state() {
             sequence = snapshot["sequence"].as_u64().unwrap();
             let visible = request(&mut observer, json!({"type": "snapshot", "session": id})).await;
             if visible["text"].as_str().unwrap().contains("ECHO:unchanged") {
-                assert_eq!(snapshot["alternate"], true);
+                assert_eq!(visible["alternate"], true);
                 break;
             }
             tokio::time::sleep(Duration::from_millis(10)).await;

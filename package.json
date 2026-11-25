@@ -14,7 +14,9 @@
     "lint": "node scripts/generate-control.mjs --check && eslint . && cargo fmt --all --check && cargo clippy --locked --all-targets -- -D warnings",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "format": "prettier --write . && cargo fmt --all",
-    "benchmark": "tsx benchmarks/agent.ts"
+    "benchmark": "tsx benchmarks/agent.ts",
+    "release:prepare": "node scripts/npm-release.mjs prepare",
+    "release:publish": "node scripts/npm-release.mjs publish"
   },
   "devDependencies": {
     "@types/node": "^22",
