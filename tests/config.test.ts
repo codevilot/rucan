@@ -10,9 +10,11 @@ import {
 
 describe("config", () => {
   it("uses absolute XDG paths and falls back to the home directory", () => {
-    expect(configPath("/custom", "/home/dev")).toBe("/custom/tman/config.yaml");
+    expect(configPath("/custom", "/home/dev")).toBe(
+      "/custom/rucan/config.yaml",
+    );
     expect(configPath("relative", "/home/dev")).toBe(
-      "/home/dev/.config/tman/config.yaml",
+      "/home/dev/.config/rucan/config.yaml",
     );
   });
 
@@ -76,8 +78,8 @@ workspaces:
   });
 
   it("creates one private config with concurrent readers and preserves user edits", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tman-test-"));
-    const path = join(dir, "tman", "config.yaml");
+    const dir = await mkdtemp(join(tmpdir(), "rucan-test-"));
+    const path = join(dir, "rucan", "config.yaml");
     try {
       const [first, second] = await Promise.all([
         loadConfig(path),

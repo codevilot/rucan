@@ -20,7 +20,7 @@ function packageVersion(): string {
     const version = stableVersion(metadata.version);
     if (version) return version;
   }
-  throw new Error("Invalid tman package version");
+  throw new Error("Invalid rucan package version");
 }
 
 export const version = packageVersion();

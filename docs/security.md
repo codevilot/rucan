@@ -1,6 +1,6 @@
 # Security model
 
-TMAN loads user-owned YAML. The selected workspace configuration determines which executable and arguments start in a new PTY. File preview and editor actions use structured operations and a separate PTY. New configuration is created with mode 0600 in a user directory. Runtime validation rejects unknown settings, YAML aliases and invalid host aliases.
+RUCAN loads user-owned YAML. The selected workspace configuration determines which executable and arguments start in a new PTY. File preview and editor actions use structured operations and a separate PTY. New configuration is created with mode 0600 in a user directory. Runtime validation rejects unknown settings, YAML aliases and invalid host aliases.
 
 The threat model treats SSH hosts, filesystem names and PTY output as potentially hostile. The live client renders validated cells through one compositor. The agent responds to a limited set of terminal queries inside the child PTY. Clipboard, title and unsupported device control escapes do not reach the outer terminal. Live terminal state stays in memory.
 

@@ -82,11 +82,11 @@ fn valid_id(value: &str) -> bool {
 
 pub(crate) async fn list() -> Result<Inventory, String> {
     // tmux normalizes literal control characters in command arguments.
-    const DELIMITER: &str = "|TMAN|";
+    const DELIMITER: &str = "|RUCAN|";
     let response = execute(&[
         "list-sessions",
         "-F",
-        "#{session_id}|TMAN|#{session_name}|TMAN|#{session_path}",
+        "#{session_id}|RUCAN|#{session_name}|RUCAN|#{session_path}",
     ])
     .await;
     let sessions = match response {

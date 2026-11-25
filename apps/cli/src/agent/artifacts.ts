@@ -50,7 +50,7 @@ export async function bundledAgent(
   const digest = entries[platform];
   if (typeof digest !== "string" || !/^[0-9a-f]{64}$/u.test(digest))
     throw new Error(`Missing trusted digest for ${platform}`);
-  const path = fileURLToPath(new URL(`${platform}/tman-agent`, directory));
+  const path = fileURLToPath(new URL(`${platform}/rucan-agent`, directory));
   const stats = await lstat(path);
   if (
     !stats.isFile() ||

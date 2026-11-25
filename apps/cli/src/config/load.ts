@@ -44,7 +44,7 @@ export function configPath(
 ): string {
   return join(
     xdg && isAbsolute(xdg) ? xdg : join(home, ".config"),
-    "tman",
+    "rucan",
     "config.yaml",
   );
 }

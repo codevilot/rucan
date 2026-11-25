@@ -16,10 +16,10 @@ function retryable(error: unknown): boolean {
 }
 
 export function localSocketPath(): string {
-  const configured = process.env.TMAN_AGENT_SOCKET;
+  const configured = process.env.RUCAN_AGENT_SOCKET;
   if (configured) {
     if (!isAbsolute(configured))
-      throw new Error("TMAN_AGENT_SOCKET must be absolute");
+      throw new Error("RUCAN_AGENT_SOCKET must be absolute");
     return configured;
   }
   const uid = process.getuid?.();
@@ -27,8 +27,8 @@ export function localSocketPath(): string {
     throw new Error("Native sessions currently require Unix");
   const runtime = process.env.XDG_RUNTIME_DIR;
   return runtime && isAbsolute(runtime)
-    ? join(runtime, "tman", "agent.sock")
-    : join("/tmp", `tman-${uid}`, "agent.sock");
+    ? join(runtime, "rucan", "agent.sock")
+    : join("/tmp", `rucan-${uid}`, "agent.sock");
 }
 
 async function connect(path: string): Promise<SessionClient> {
@@ -61,10 +61,10 @@ export async function connectLocalAgent(start = true): Promise<SessionClient> {
   }
 
   const binary =
-    process.env.TMAN_AGENT_BINARY ??
+    process.env.RUCAN_AGENT_BINARY ??
     (await bundledAgent(process.platform, process.arch))?.path ??
     fileURLToPath(
-      new URL("../../../../target/debug/tman-agent", import.meta.url),
+      new URL("../../../../target/debug/rucan-agent", import.meta.url),
     );
   const child = spawn(binary, ["serve", "--socket", path], {
     detached: true,

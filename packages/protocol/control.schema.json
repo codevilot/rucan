@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "TMAN v1 control request",
+  "title": "RUCAN v1 control request",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "operation"],
