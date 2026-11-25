@@ -17,7 +17,7 @@ async function main(args: readonly string[]): Promise<void> {
   }
   if (args.length === 0 && process.env.RUCAN_SESSION_ID) {
     console.log(
-      "Rucan session commands\n\n  rucan ls       List sessions\n  rucan pin      Pin this session\n  rucan unpin    Unpin this session\n  rucan --help   Show all CLI commands\n\nType exit to close this shell. Open the Rucan menu to close the UI.",
+      "Rucan session commands\n\n  rucan ls       List sessions\n  rucan pin      Pin this session\n  rucan unpin    Unpin this session\n  rucan --help   Show all CLI commands\n\nType exit to close this shell. Open the command palette with F12 to close the UI.",
     );
     return;
   }

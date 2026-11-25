@@ -1,21 +1,31 @@
-interface PaletteAction {
+import type { NativeWorkspace } from "./workspaces.js";
+
+type PaletteAction =
+  { kind: "command"; key: string } | { kind: "workspace"; id: string };
+
+interface CommandEntry {
   key: string;
   label: string;
+  keywords?: string;
   requiresSession?: true;
 }
 
-const actions: readonly PaletteAction[] = [
-  { key: "n", label: "New workspace" },
-  { key: "c", label: "SSH connect" },
-  { key: "b", label: "Toggle sidebar" },
+interface PaletteEntry {
+  action: PaletteAction;
+  label: string;
+  keywords?: string;
+}
+
+const actions: readonly CommandEntry[] = [
+  { key: "n", label: "New workspace", keywords: "new session" },
+  { key: "c", label: "SSH connect", keywords: "IP remote" },
   { key: "e", label: "Browse files" },
   { key: "h", label: "Switch host" },
   { key: "t", label: "Manage tmux sessions" },
-  { key: "p", label: "Pin workspace", requiresSession: true },
   { key: "s", label: "View terminal history", requiresSession: true },
   { key: "r", label: "Rename workspace", requiresSession: true },
-  { key: "d", label: "Close UI and keep sessions" },
-  { key: "q", label: "Quit Rucan" },
+  { key: "d", label: "Close UI and keep sessions", keywords: "detach" },
+  { key: "q", label: "Quit Rucan", keywords: "exit /exit" },
 ];
 
 export class CommandPalette {
@@ -23,13 +33,27 @@ export class CommandPalette {
   #index = 0;
 
   constructor(
-    private readonly hasSession: boolean,
+    private readonly workspaces: readonly NativeWorkspace[],
+    private readonly selected: string | undefined,
     private readonly update: string | undefined,
+    private readonly sidebarVisible: boolean,
   ) {}
 
-  #matches(): PaletteAction[] {
-    const available = [
+  #matches(): PaletteEntry[] {
+    const pinned = this.workspaces.find(
+      ({ id }) => id === this.selected,
+    )?.persistent;
+    const commands: CommandEntry[] = [
       ...actions,
+      {
+        key: "p",
+        label: pinned ? "Unpin workspace" : "Pin workspace",
+        requiresSession: true,
+      },
+      {
+        key: "b",
+        label: this.sidebarVisible ? "Hide sidebar" : "Show sidebar",
+      },
       {
         key: "u",
         label: this.update
@@ -37,16 +61,39 @@ export class CommandPalette {
           : "Check for updates",
       },
     ];
+    const workspaces: PaletteEntry[] = this.workspaces.map(
+      ({ id, name }, index) => ({
+        action: { kind: "workspace", id },
+        label: `Switch to ${index + 1} · ${name}${id === this.selected ? " (current)" : ""}`,
+      }),
+    );
+    const query = this.#query.trim();
+    if (/^[1-9]\d?$/u.test(query))
+      return workspaces.slice(Number(query) - 1, Number(query));
+    const available: PaletteEntry[] = [
+      ...commands
+        .filter(({ requiresSession }) => !requiresSession || this.selected)
+        .map(({ key, label, keywords }) => ({
+          action: { kind: "command" as const, key },
+          label,
+          ...(keywords ? { keywords } : {}),
+        })),
+      ...workspaces,
+    ];
     const terms = this.#query.trim().toLowerCase().split(/\s+/u);
-    return available.filter(
-      ({ label, requiresSession }) =>
-        (!requiresSession || this.hasSession) &&
-        terms.every((term) => label.toLowerCase().includes(term)),
+    return available.filter(({ label, keywords }) =>
+      terms.every((term) =>
+        `${label} ${keywords ?? ""}`.toLowerCase().includes(term),
+      ),
     );
   }
 
-  input(key: string): string | undefined {
-    if (key === "\r") return this.#matches()[this.#index]?.key;
+  input(key: string): PaletteAction | undefined {
+    if (/^\P{Cc}+\r$/u.test(key)) {
+      this.input(key.slice(0, -1));
+      return this.input("\r");
+    }
+    if (key === "\r") return this.#matches()[this.#index]?.action;
     if (key === "\x1b[A" || key === "\x1b[B") {
       const step = key === "\x1b[A" ? -1 : 1;
       this.#index = Math.max(

@@ -13,7 +13,7 @@ import time
 import termios
 import fcntl
 
-from local_tty import read_until
+from local_tty import choose_action, read_until
 
 NODE = ["node", "apps/cli/dist/main.js"]
 HOST = "rucan-offline-e2e"
@@ -77,9 +77,7 @@ def exercise_tmux(env):
         read_until(master, b"outside-rucan")
         os.write(master, b"printf 'TMUX-%s\\n' attached\r")
         read_until(master, b"TMUX-attached")
-        os.write(master, b"\7")
-        read_until(master, b"P Pin")
-        os.write(master, b"q")
+        choose_action(master, "Quit Rucan")
         read_until(master, b"3  Stop all Rucan-managed sessions")
         os.write(master, b"3")
         read_until(master, b"\x1b[?1049l")
@@ -133,10 +131,8 @@ def run(root, container, artifact, with_tmux):
     master, process = start_terminal(first, session)
     try:
         read_until(master, b"RUNNING")
-        os.write(master, b"\7")
-        read_until(master, b"P Pin")
-        os.write(master, b"p")
-        read_until(master, "◆".encode())
+        choose_action(master, "Pin workspace")
+        read_until(master, "›1 ◆".encode())
     finally:
         stop_terminal(master, process, signal.SIGKILL)
 
@@ -151,9 +147,7 @@ def run(root, container, artifact, with_tmux):
     master, process = start_terminal(second, session)
     try:
         read_until(master, b"RUNNING")
-        os.write(master, b"\7")
-        read_until(master, b"P Pin")
-        os.write(master, b"d")
+        choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
     finally:

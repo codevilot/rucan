@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Combined workspace actions and session switching in one command palette.
+- Removed the Ctrl menu shortcut so control keys are delivered to the shell.
+
 ## 0.1.5
 
 - Showed Option+Space on macOS and Alt+Space on Linux in the command palette shortcut hint.

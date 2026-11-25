@@ -101,8 +101,6 @@ class InteractiveWorkspace {
   #history: TerminalSnapshot | undefined;
   #offset = 0;
   #name = "";
-  #command = "";
-  #commandError = false;
   #palette: CommandPalette | undefined;
   #sshTarget = "";
   #tmux: TmuxTarget[] = [];
@@ -172,7 +170,7 @@ class InteractiveWorkspace {
     let stopRefresh: (() => void) | undefined;
     try {
       await this.#select(target ?? (await this.#new()), false);
-      unmount = mountRawInput(this.#config.terminal.prefix_key, {
+      unmount = mountRawInput({
         input: (events) => {
           this.#receivedInput = true;
           return this.#enqueue(async () => {
@@ -365,21 +363,17 @@ class InteractiveWorkspace {
 
   async #input(event: TerminalInput): Promise<void> {
     if (event.type === "palette") {
-      if (this.#mode === "terminal" || this.#mode === "menu")
+      if (this.#mode === "palette") this.#mode = "terminal";
+      else {
+        if (this.#mode === "explorer") this.#explorer.leave();
+        if (this.#mode === "hosts") this.#hostTrial++;
         this.#openPalette();
-      else if (this.#mode === "palette") this.#mode = "terminal";
-      this.#draw();
-      return;
-    }
-    if (event.type === "prefix") {
-      if (this.#mode === "explorer") this.#explorer.leave();
-      if (this.#mode === "hosts") this.#hostTrial++;
-      this.#mode = this.#mode === "terminal" ? "menu" : "terminal";
+      }
       this.#draw();
       return;
     }
     if (event.type === "mouse") {
-      if (this.#mode !== "terminal" && this.#mode !== "menu") return;
+      if (this.#mode !== "terminal" && this.#mode !== "palette") return;
       const drag = this.#sidebar.mouse(
         event,
         this.#layout.sidebar,
@@ -399,7 +393,7 @@ class InteractiveWorkspace {
         const action = sidebarActionAt(event.row, this.#layout.rows - 2);
         const workspace = this.#workspaces[event.row - 3];
         if (action) {
-          await this.#menu(action);
+          await this.#runAction(action);
           this.#draw();
         } else if (
           workspace &&
@@ -407,7 +401,10 @@ class InteractiveWorkspace {
           workspace.ownership === "managed"
         )
           await this.#pin(workspace);
-        else if (workspace) await this.#select(workspace);
+        else if (workspace) {
+          this.#mode = "terminal";
+          await this.#select(workspace);
+        }
       } else if (this.#mode === "terminal" && this.#snapshot) {
         const bytes = terminalMouse(event, this.#layout, this.#snapshot.grid);
         if (bytes) await this.#forward(bytes);
@@ -431,9 +428,14 @@ class InteractiveWorkspace {
       if (key === "\x1b") this.#mode = "terminal";
       else {
         const action = this.#palette?.input(key);
-        if (action) {
-          this.#mode = "menu";
-          await this.#menu(action);
+        if (action?.kind === "workspace") {
+          const workspace = this.#workspaces.find(({ id }) => id === action.id);
+          if (workspace) {
+            await this.#select(workspace);
+            this.#mode = "terminal";
+          }
+        } else if (action?.kind === "command") {
+          await this.#runAction(action.key);
         }
       }
     } else if (this.#mode === "ssh") {
@@ -441,7 +443,7 @@ class InteractiveWorkspace {
     } else if (this.#mode === "explorer") {
       if (key === "\x1b") {
         this.#explorer.leave();
-        this.#mode = "menu";
+        this.#openPalette();
       } else if (key === "\x1b[A") this.#explorer.move(-1);
       else if (key === "\x1b[B") this.#explorer.move(1);
       else if (key === "\r") this.#explorer.activate();
@@ -449,7 +451,7 @@ class InteractiveWorkspace {
       else if (key === "o" && this.#explorer.file)
         await this.#openEditor(this.#explorer.file);
     } else if (this.#mode === "create") {
-      if (key === "\x1b") this.#mode = "menu";
+      if (key === "\x1b") this.#openPalette();
       else if (key === "\x1b[A")
         this.#newIndex = Math.max(0, this.#newIndex - 1);
       else if (key === "\x1b[B")
@@ -466,7 +468,7 @@ class InteractiveWorkspace {
     } else if (this.#mode === "hosts") {
       if (key === "\x1b") {
         this.#hostTrial++;
-        this.#mode = "menu";
+        this.#openPalette();
         this.#status = "";
       } else if (key === "\x1b[A")
         this.#hostIndex = Math.max(0, this.#hostIndex - 1);
@@ -475,7 +477,7 @@ class InteractiveWorkspace {
       else if (key === "\r") this.#switchHost(this.#hosts[this.#hostIndex]);
     } else if (this.#mode === "history") {
       if (key === "\x1b") {
-        this.#mode = "menu";
+        this.#openPalette();
         this.#history = undefined;
       } else if (key === "\x1b[5~" || key === "\x1b[A")
         await this.#scroll(this.#offset + this.#layout.terminalRows);
@@ -484,7 +486,7 @@ class InteractiveWorkspace {
           Math.max(0, this.#offset - this.#layout.terminalRows),
         );
     } else if (this.#mode === "rename") {
-      if (key === "\x1b") this.#mode = "menu";
+      if (key === "\x1b") this.#openPalette();
       else if (key === "\x7f")
         this.#name = [...this.#name].slice(0, -1).join("");
       else if (key === "\r") await this.#rename();
@@ -511,7 +513,7 @@ class InteractiveWorkspace {
         this.#mode = "terminal";
       }
     } else if (this.#mode === "tmux") {
-      if (key === "\x1b") this.#mode = "menu";
+      if (key === "\x1b") this.#openPalette();
       else if (key === "\x1b[A")
         this.#tmuxIndex = Math.max(0, this.#tmuxIndex - 1);
       else if (key === "\x1b[B")
@@ -523,15 +525,11 @@ class InteractiveWorkspace {
       else if (key === "\r" && this.#tmux[this.#tmuxIndex]) {
         await this.#openTmux(this.#tmux[this.#tmuxIndex]?.id ?? null);
       }
-    } else if (this.#mode === "command") {
-      await this.#readCommand(key);
     } else if (this.#mode === "exit") {
       if (key === "1" || key === "\r") await this.#exit("keep-all");
       if (key === "2") await this.#exit("keep-pinned");
       if (key === "3") await this.#exit("terminate");
-      if (key === "\x1b" || key === "4") this.#mode = "menu";
-    } else {
-      await this.#menu(key);
+      if (key === "\x1b" || key === "4") this.#openPalette();
     }
     this.#draw();
   }
@@ -588,7 +586,7 @@ class InteractiveWorkspace {
       workspace.id === renamed.id ? renamed : workspace,
     );
     this.#selected = renamed;
-    this.#mode = "menu";
+    this.#openPalette();
   }
 
   async #scroll(offset: number): Promise<void> {
@@ -641,17 +639,8 @@ class InteractiveWorkspace {
     this.#mode = "terminal";
   }
 
-  async #menu(key: string): Promise<void> {
-    if (key === "\x1b") {
-      this.#mode = "terminal";
-    } else if (key === " ") {
-      this.#openPalette();
-    } else if (key.startsWith("/")) {
-      this.#command = "";
-      this.#commandError = false;
-      this.#mode = "command";
-      await this.#readCommand(key.slice(1));
-    } else if (key === "d") {
+  async #runAction(key: string): Promise<void> {
+    if (key === "d") {
       await this.#exit("keep-all");
     } else if (key === "q" || key === "Q") {
       await this.#requestExit();
@@ -667,6 +656,7 @@ class InteractiveWorkspace {
       this.#sidebar.toggle();
       this.#applySidebar();
       await this.#resize();
+      this.#mode = "terminal";
     } else if (key === "t") {
       const inventory = await listTmux(this.#client);
       if (!inventory.available)
@@ -697,27 +687,17 @@ class InteractiveWorkspace {
       this.#mode = "hosts";
     } else if (key === "p" && this.#selected) {
       await this.#pin(this.#selected);
-    } else {
-      const current = this.#workspaces.findIndex(
-        ({ id }) => id === this.#selected?.id,
-      );
-      const index = /^[1-9]$/u.test(key)
-        ? Number(key) - 1
-        : key === "\x1b[A"
-          ? Math.max(0, current - 1)
-          : key === "\x1b[B"
-            ? current + 1
-            : -1;
-      const next = this.#workspaces[index];
-      if (next) {
-        await this.#select(next);
-        this.#mode = "terminal";
-      }
+      this.#mode = "terminal";
     }
   }
 
   #openPalette(): void {
-    this.#palette = new CommandPalette(Boolean(this.#selected), this.#update);
+    this.#palette = new CommandPalette(
+      this.#workspaces,
+      this.#selected?.id,
+      this.#update,
+      this.#layout.sidebar > 0,
+    );
     this.#mode = "palette";
   }
 
@@ -742,7 +722,7 @@ class InteractiveWorkspace {
   }
 
   async #readSshTarget(key: string): Promise<void> {
-    if (key === "\x1b") this.#mode = "menu";
+    if (key === "\x1b") this.#openPalette();
     else if (key === "\x7f") this.#sshTarget = this.#sshTarget.slice(0, -1);
     else if (key === "\r") {
       const workspace = await openSshShell(
@@ -756,23 +736,6 @@ class InteractiveWorkspace {
       await this.#select(workspace);
     } else if (/^[a-zA-Z0-9_.:@-]+$/u.test(key))
       this.#sshTarget = (this.#sshTarget + key).slice(0, 128);
-  }
-
-  async #readCommand(input: string): Promise<void> {
-    if (input === "\x1b") {
-      this.#mode = "menu";
-      return;
-    }
-    const [text = "", submitted] = input.split(/(\r|\n)/u, 2);
-    if (!/^[a-zA-Z\x7f]*$/u.test(text)) return;
-    for (const character of text.slice(0, 32)) {
-      if (character === "\x7f") this.#command = this.#command.slice(0, -1);
-      else if (this.#command.length < 24) this.#command += character;
-    }
-    if (text) this.#commandError = false;
-    if (!submitted) return;
-    if (this.#command.toLowerCase() === "exit") await this.#requestExit();
-    else this.#commandError = true;
   }
 
   async #requestExit(): Promise<void> {
@@ -822,8 +785,6 @@ class InteractiveWorkspace {
         tmuxIndex: this.#tmuxIndex,
         name: this.#name,
         offset: this.#offset,
-        command: this.#command,
-        commandError: this.#commandError,
         sshTarget: this.#sshTarget,
         paletteLines:
           this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,

@@ -9,23 +9,13 @@ export function WorkspaceView({ config }: { config: Config }): ReactElement {
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const [selected, setSelected] = useState(0);
-  const [menu, setMenu] = useState(false);
   const workspace = config.workspaces[selected];
-  const prefix = config.terminal.prefix_key;
   useInput((input, key) => {
-    if (key.ctrl && input === prefix.slice(-1)) {
-      setMenu((open) => !open);
-      return;
-    }
-    if (key.escape && menu) {
-      setMenu(false);
-      return;
-    }
     if (!key.ctrl && !key.meta && input === "q") {
       exit();
       return;
     }
-    if (menu || config.workspaces.length === 0) return;
+    if (config.workspaces.length === 0) return;
     if (key.upArrow || key.downArrow) {
       const step = key.upArrow ? -1 : 1;
       setSelected((index) =>
@@ -93,31 +83,25 @@ export function WorkspaceView({ config }: { config: Config }): ReactElement {
           flexDirection="column"
           paddingX={1}
         >
-          <Text bold>{menu ? "MENU" : "TERMINAL"}</Text>
-          {menu ? (
-            <Text>Esc closes the menu. Q quits.</Text>
-          ) : (
-            <>
-              {workspace && (
-                <Text wrap="truncate-end">
-                  {workspace.host ?? "local"} · {workspace.backend} ·{" "}
-                  {workspace.persistence}
-                </Text>
-              )}
-              {workspace && (
-                <Text wrap="truncate-end" color="green">
-                  {workspace.cwd} $ {workspace.command}
-                </Text>
-              )}
-              <Text wrap="truncate-end" dimColor>
-                Fixture preview. No shell is running.
-              </Text>
-            </>
+          <Text bold>TERMINAL</Text>
+          {workspace && (
+            <Text wrap="truncate-end">
+              {workspace.host ?? "local"} · {workspace.backend} ·{" "}
+              {workspace.persistence}
+            </Text>
           )}
+          {workspace && (
+            <Text wrap="truncate-end" color="green">
+              {workspace.cwd} $ {workspace.command}
+            </Text>
+          )}
+          <Text wrap="truncate-end" dimColor>
+            Fixture preview. No shell is running.
+          </Text>
         </Box>
       </Box>
       <Text wrap="truncate-end" dimColor>
-        {prefix} Menu · ↑↓ / 1–9 Switch · Q Quit
+        ↑↓ / 1–9 Switch · Q Quit
       </Text>
     </Box>
   );
