@@ -1,6 +1,7 @@
 import type { NativeWorkspace } from "./workspaces.js";
+import { paletteResultCount } from "./palette-layout.js";
 
-type PaletteAction =
+export type PaletteAction =
   { kind: "command"; key: string } | { kind: "workspace"; id: string };
 
 interface CommandEntry {
@@ -112,7 +113,7 @@ export class CommandPalette {
 
   lines(rows: number): string[] {
     const matches = this.#matches();
-    const visible = Math.max(1, Math.min(7, rows - 2));
+    const visible = paletteResultCount(rows);
     const first = Math.max(0, this.#index - visible + 1);
     return [
       "◆  Rucan commands",
@@ -125,5 +126,13 @@ export class CommandPalette {
             )
         : ["   No matching actions"]),
     ];
+  }
+
+  actionAt(line: number, rows: number): PaletteAction | undefined {
+    const index = line - 2;
+    const visible = paletteResultCount(rows);
+    if (index < 0 || index >= visible) return undefined;
+    const first = Math.max(0, this.#index - visible + 1);
+    return this.#matches()[first + index]?.action;
   }
 }

@@ -11,7 +11,7 @@ import tempfile
 import termios
 import time
 
-from local_tty import choose_action, read_until
+from local_tty import PALETTE_HINT, choose_action, read_until
 
 NODE = ["node", str(Path("apps/cli/dist/main.js").resolve())]
 
@@ -64,7 +64,7 @@ def exercise(env, newer, late=False):
     process = subprocess.Popen(NODE, stdin=slave, stdout=slave, stderr=slave, env=env)
     try:
         if late:
-            read_until(master, b"F12 Palette")
+            read_until(master, PALETTE_HINT)
             os.write(master, b"printf 'LATE-%s\\n' working\r")
             frame = read_until(master, f"Update v{newer}".encode())
             assert b"LATE-working" in frame
@@ -74,14 +74,14 @@ def exercise(env, newer, late=False):
             assert b"1  Update and reopen this workspace" in frame
             assert b"2  Continue with this version" in frame
             os.write(master, b"2")
-            read_until(master, b"F12 Palette")
+            read_until(master, PALETTE_HINT)
             os.write(master, b"printf 'EARLY-%s\\n' continued\r")
             read_until(master, b"EARLY-continued")
 
         choose_action(master, "Review update")
         read_until(master, b"3  Skip this version")
         os.write(master, b"3")
-        read_until(master, b"F12 Palette")
+        read_until(master, PALETTE_HINT)
         assert (Path(env["XDG_CACHE_HOME"]) / "rucan/skip-version").read_text().strip() == newer
         choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
