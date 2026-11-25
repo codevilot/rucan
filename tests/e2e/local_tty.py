@@ -52,7 +52,7 @@ def run():
         ssh_fixture.write_text(
             '#!/bin/sh\n'
             'if [ "$*" = "-o StrictHostKeyChecking=ask -- ops@192.0.2.7" ]; then\n'
-            "  printf 'SSH-ARGV-ok\\n'\n"
+            '  printf "SSH-ARGV-ok %s\\n" "$$"\n'
             "  read -r input\n"
             "fi\n"
         )
@@ -225,10 +225,12 @@ def exercise_session_exit(node, env):
         read_until(master, b"SSH-ARGV-ok")
         os.write(master, b"\x1b[<0;24;2M")
         frame = read_until(master, "›3 ◇ ops@192.0.2.7".encode())
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        ssh_sessions = [item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7"]
+        assert len(ssh_sessions) == 2
+        assert len({item["pid"] for item in ssh_sessions}) == 2
         if b"SSH-ARGV-ok" not in frame:
             read_until(master, b"SSH-ARGV-ok")
-        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
-        assert sum(item.get("sshTarget") == "ops@192.0.2.7" for item in sessions) == 2
         choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
