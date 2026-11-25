@@ -101,6 +101,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       workspaceSidebar(
         workspaceLabels(state.config, state.workspaces, selected?.id),
         state.layout.sidebar,
+        state.workspaces.length,
         selected,
       ),
     ...(selection && state.layout.sidebar === 0

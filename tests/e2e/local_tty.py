@@ -51,10 +51,14 @@ def run():
         ssh_fixture = bin_dir / "ssh"
         ssh_fixture.write_text(
             '#!/bin/sh\n'
-            'if [ "$*" = "-o StrictHostKeyChecking=ask -- ops@192.0.2.7" ]; then\n'
-            '  printf "SSH-ARGV-ok %s\\n" "$$"\n'
-            "  read -r input\n"
-            "fi\n"
+            'case "$*" in\n'
+            '  "-o StrictHostKeyChecking=ask -- ops@192.0.2.7")\n'
+            '    printf "\\033]7;file://host/srv/QA%%20folder\\007SSH-ARGV-ok %s\\n" "$$";;\n'
+            '  "-o StrictHostKeyChecking=ask -t -- ops@192.0.2.7 sh -c "*"/srv/QA folder"*)\n'
+            '    printf "SSH-CWD-ok %s\\n" "$$";;\n'
+            '  *) exit 2;;\n'
+            'esac\n'
+            'read -r input\n'
         )
         ssh_fixture.chmod(0o700)
         env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
@@ -99,7 +103,8 @@ def exercise(node, env):
         frame = read_until(master, PALETTE_HINT)
         assert name + b" v" + number in frame
         assert frame.count(b"v" + number) == 2
-        assert "BG○ +".encode() in frame
+        assert "BG○".encode() in frame
+        assert any(b"tty-test" in row and b"+" in row for row in frame.split(b"\x1b[2K"))
         for rows, cols, terminal_cols in [(24, 40, 40), (24, 100, 75)]:
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             process.send_signal(signal.SIGWINCH)
@@ -194,7 +199,16 @@ def exercise_session_exit(node, env):
         frame = read_until(master, PALETTE_HINT)
         assert "›1 ◇ first-shell".encode() in frame
         assert " 3 ◇ next-shell".encode() in frame
+        destination = shlex.quote(str(Path(env["XDG_CONFIG_HOME"]) / "project/scoped"))
+        os.write(master, f"cd {destination} && printf 'SOURCE-%s\\n' ready\r".encode())
+        read_until(master, b"SOURCE-ready")
         choose_action(master, "next-shell")
+        read_until(master, "›3 ◇ next-shell".encode())
+        os.write(master, b"\x1b[<0;24;3M")
+        read_until(master, "›4 ◇ tty-test".encode())
+        os.write(master, b"printf 'CLONED-%s\\n' \"${PWD##*/}\"\r")
+        read_until(master, b"CLONED-scoped")
+        os.write(master, b"exit\r")
         read_until(master, "›3 ◇ next-shell".encode())
         choose_action(master, "1")
         read_until(master, "›1 ◇ first-shell".encode())
@@ -228,14 +242,16 @@ def exercise_session_exit(node, env):
         read_until(master, b"Host  ops@192.0.2.7")
         os.write(master, b"\r")
         read_until(master, b"SSH-ARGV-ok")
-        os.write(master, b"\x1b[<0;24;2M")
+        choose_action(master, "1")
+        read_until(master, "›1 ◇ tty-test".encode())
+        os.write(master, b"\x1b[<0;24;4M")
         frame = read_until(master, "›3 ◇ ops@192.0.2.7".encode())
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         ssh_sessions = [item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7"]
         assert len(ssh_sessions) == 2
         assert len({item["pid"] for item in ssh_sessions}) == 2
-        if b"SSH-ARGV-ok" not in frame:
-            read_until(master, b"SSH-ARGV-ok")
+        if b"SSH-CWD-ok" not in frame:
+            read_until(master, b"SSH-CWD-ok")
         choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0

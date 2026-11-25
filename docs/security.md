@@ -13,3 +13,5 @@ Session descriptions expose the destination of interactive OpenSSH tabs for reus
 See [SECURITY.md](../SECURITY.md) for reporting guidance.
 
 Working-directory lookups use the selected PTY child and never send commands into the foreground terminal. OSC 7 reports are treated as untrusted paths. They can select a folder on the already selected SSH destination and are never rendered as control sequences.
+
+When an SSH tab reports a directory, a new connection uses a quoted path in a fixed remote shell command. Host-key verification and authentication remain with OpenSSH.

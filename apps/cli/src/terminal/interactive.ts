@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import { availableUpdate, skipUpdate } from "../release/updates.js";
 import { restartAfterUpdate } from "../release/restart.js";
 import { Explorer } from "../explorer/explorer.js";
+import { workingDirectories } from "./working-directories.js";
 import { workspaceDirectory } from "../explorer/workspace-directory.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
@@ -230,14 +231,16 @@ class InteractiveWorkspace {
     return this.#jobs;
   }
 
-  async #new(): Promise<NativeWorkspace> {
-    const current = this.#selected;
+  async #new(current = this.#selected): Promise<NativeWorkspace> {
+    const directories =
+      current && (await workingDirectories(this.#client, current.id));
     const workspace = current?.sshTarget
       ? await openSshShell(
           this.#client,
           this.#config,
           this.#layout,
           current.sshTarget,
+          directories?.reported,
         )
       : await createWorkspace(
           this.#client,
@@ -245,6 +248,9 @@ class InteractiveWorkspace {
           this.#layout,
           this.#host,
           current,
+          current?.backend === "tmux"
+            ? directories?.reported
+            : directories?.path,
         );
     this.#workspaces.push(workspace);
     return workspace;
@@ -414,13 +420,23 @@ class InteractiveWorkspace {
       }
       const action =
         !event.release && event.button === 0
-          ? sidebarActionAt(event.row, event.col, this.#layout.sidebar)
+          ? sidebarActionAt(
+              event.row,
+              event.col,
+              this.#layout.sidebar,
+              this.#workspaces.length,
+            )
           : undefined;
-      if (action === "new") {
-        await this.#runAction("n");
+      if (action?.type === "new") {
+        const source =
+          action.workspaceIndex === undefined
+            ? undefined
+            : this.#workspaces[action.workspaceIndex];
+        if (action.workspaceIndex !== undefined && !source) return;
+        await this.#select(await this.#new(source));
         return;
       }
-      if (action === "background") {
+      if (action?.type === "background") {
         if (this.#selected?.ownership === "managed")
           await this.#pin(this.#selected);
         return;

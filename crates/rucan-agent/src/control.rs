@@ -359,21 +359,7 @@ fn spawn(
     }
     let cwd = resolve_path(&cwd)?;
     let id = Uuid::new_v4();
-    let ssh_target = match args.as_slice() {
-        [option, verification, end, target]
-            if command == "ssh"
-                && option == "-o"
-                && verification == "StrictHostKeyChecking=ask"
-                && end == "--"
-                && (1..=128).contains(&target.len())
-                && target
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || b"_.:@-".contains(&byte)) =>
-        {
-            Some(target.clone())
-        }
-        _ => None,
-    };
+    let ssh_target = ssh_target(&command, &args);
     let mut program = CommandBuilder::new(command);
     program.args(args);
     program.cwd(&cwd);
@@ -401,6 +387,25 @@ fn spawn(
     let description = describe(id, &entry);
     sessions.insert(id, entry);
     Ok(description)
+}
+
+fn ssh_target(command: &str, args: &[String]) -> Option<String> {
+    if command != "ssh"
+        || args.first()?.as_str() != "-o"
+        || args.get(1)?.as_str() != "StrictHostKeyChecking=ask"
+    {
+        return None;
+    }
+    let target = match &args[2..] {
+        [end, target] if end == "--" => target,
+        [terminal, end, target, _] if terminal == "-t" && end == "--" => target,
+        _ => return None,
+    };
+    ((1..=128).contains(&target.len())
+        && target
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"_.:@-".contains(&byte)))
+    .then(|| target.clone())
 }
 fn validate_name(name: &str) -> Result<(), String> {
     if name.trim().is_empty() || name.len() > 128 || name.chars().any(char::is_control) {

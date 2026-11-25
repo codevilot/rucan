@@ -30,7 +30,7 @@ workspaces:
 
 The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. Use the sidebar or search the palette by workspace name or number to switch sessions.
 
-Click **+** in the sidebar to open a new session in the selected workspace's environment. For an interactive SSH tab, it opens another connection to the same destination. Use **SSH connect** in the command palette to enter a new IP address, alias, or `user@host`. Click **BG** to pin or unpin the selected managed session.
+Click **+** next to a workspace to open another session at that workspace's current directory. For an interactive SSH tab, it connects to the same destination and uses the reported directory when available. Use **SSH connect** in the command palette to enter a new IP address, alias, or `user@host`. Click **BG** to pin or unpin the selected managed session.
 
 Drag the sidebar divider to resize it. Search the palette for **Hide sidebar** or **Show sidebar**.
 
