@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Offered to update, continue, or skip a release at startup.
+- Kept the update in the menu when the user had already started interacting with the terminal.
+
 ## 0.1.3
 
 - Added colored workspace tabs, sidebar actions, navigation hints, and a footer version badge.

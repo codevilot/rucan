@@ -59,6 +59,13 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       header: `Update available: v${version} → v${state.update}`,
       footer,
       sidebarLines: [],
+      paletteLines: [
+        "◆  Rucan update",
+        `v${version} → v${state.update}`,
+        "   1  Update and reopen this workspace",
+        "   2  Continue with this version",
+        "   3  Skip this version",
+      ],
       snapshot: undefined,
       showCursor: false,
     };

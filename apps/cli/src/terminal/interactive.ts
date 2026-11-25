@@ -111,6 +111,7 @@ class InteractiveWorkspace {
   #controlsInput = false;
   #watcher: TerminalWatch;
   #stopped = false;
+  #receivedInput = false;
   #resizePending = false;
   #jobs = Promise.resolve();
   #resolveExit: (() => void) | undefined;
@@ -169,13 +170,15 @@ class InteractiveWorkspace {
     try {
       await this.#select(target ?? (await this.#new()), false);
       unmount = mountRawInput(this.#config.terminal.prefix_key, {
-        input: (events) =>
-          this.#enqueue(async () => {
+        input: (events) => {
+          this.#receivedInput = true;
+          return this.#enqueue(async () => {
             for (const event of events) {
               if (this.#stopped) break;
               await this.#input(event);
             }
-          }),
+          });
+        },
         resize: onResize,
         stop: () => this.#stop(),
       });
@@ -188,6 +191,8 @@ class InteractiveWorkspace {
           .then((target) => {
             if (this.#stopped || !target) return;
             this.#update = target;
+            if (!this.#receivedInput && this.#mode === "terminal")
+              this.#mode = "update";
             this.#draw();
           })
           .catch(() => {});
@@ -486,8 +491,10 @@ class InteractiveWorkspace {
           this.#stop();
         }
       } else if (key === "2" || key === "\x1b" || key === "3") {
-        if (key === "3" && this.#update) await skipUpdate(this.#update);
-        this.#update = undefined;
+        if (key === "3" && this.#update) {
+          await skipUpdate(this.#update);
+          this.#update = undefined;
+        }
         this.#mode = "terminal";
       }
     } else if (this.#mode === "tmux") {
