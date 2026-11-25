@@ -15,7 +15,7 @@
     "string-width": "^8.3.0",
     "yaml": "^2.8.0"
   },
-  "description": "Terminal-native local and SSH workspace manager with persistent sessions",
+  "description": "All You Can. A terminal workspace manager for persistent local and SSH sessions",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/codevilot/rucan.git",

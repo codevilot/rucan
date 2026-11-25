@@ -1,6 +1,6 @@
 # rucan
 
-Rucan brings local and SSH workspaces, file navigation, and persistent terminal sessions into one terminal-native workspace manager.
+**All You Can.** Rucan brings local and SSH workspaces, file navigation, and persistent terminal sessions into one terminal-native workspace manager.
 
 Open a shell and decide later whether to keep it running. The native agent owns each session from the start and keeps it alive across client disconnects. Native sessions require no tmux. Agents and host reboots end the lifetime of the running processes.
 
