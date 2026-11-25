@@ -6,15 +6,15 @@ import { performance } from "node:perf_hooks";
 import xterm from "@xterm/headless";
 
 const markers = {
-  bash: "TMAN-BASH",
-  zsh: "TMAN-ZSH",
-  vim: "TMAN-VIM",
-  rapid: "TMAN-LINE 09999",
+  bash: "RUCAN-BASH",
+  zsh: "RUCAN-ZSH",
+  vim: "RUCAN-VIM",
+  rapid: "RUCAN-LINE 09999",
 };
 type Probe = keyof typeof markers;
 const probes: Record<Probe, readonly string[]> = {
-  bash: ["bash", "--noprofile", "--norc", "-c", "printf 'TMAN-BASH\\n'"],
-  zsh: ["zsh", "-f", "-c", "printf 'TMAN-ZSH\\n'"],
+  bash: ["bash", "--noprofile", "--norc", "-c", "printf 'RUCAN-BASH\\n'"],
+  zsh: ["zsh", "-f", "-c", "printf 'RUCAN-ZSH\\n'"],
   vim: [
     "vim",
     "-Nu",
@@ -23,7 +23,7 @@ const probes: Record<Probe, readonly string[]> = {
     "NONE",
     "-n",
     "-c",
-    "call setline(1, 'TMAN-VIM')",
+    "call setline(1, 'RUCAN-VIM')",
     "-c",
     "redraw!",
     "-c",
@@ -34,7 +34,7 @@ const probes: Record<Probe, readonly string[]> = {
   rapid: [
     "sh",
     "-c",
-    'i=0; while [ "$i" -lt 10000 ]; do printf \'TMAN-LINE %05d\\n\' "$i"; i=$((i+1)); done',
+    'i=0; while [ "$i" -lt 10000 ]; do printf \'RUCAN-LINE %05d\\n\' "$i"; i=$((i+1)); done',
   ],
 };
 

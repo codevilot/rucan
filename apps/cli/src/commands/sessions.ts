@@ -26,13 +26,13 @@ export async function runSessionCommand(
   const [argument, ...rest] = host ? arguments_.slice(2) : arguments_;
   if (!command || !names.has(command)) return false;
   if ((command === "ls" || command === "status") && argument !== undefined) {
-    throw new Error(`Usage: tman ${command}`);
+    throw new Error(`Usage: rucan ${command}`);
   }
   if (command !== "new" && command !== "rename" && rest.length > 0) {
-    throw new Error(`Usage: tman ${command} [session]`);
+    throw new Error(`Usage: rucan ${command} [session]`);
   }
 
-  const session = argument ?? process.env.TMAN_SESSION_ID;
+  const session = argument ?? process.env.RUCAN_SESSION_ID;
   const client = host
     ? await connectRemoteAgent(host)
     : await connectLocalAgent(command === "new" || command === "ls");
@@ -45,7 +45,7 @@ export async function runSessionCommand(
       );
     } else if (command === "shutdown") {
       if (argument && argument !== "--force")
-        throw new Error("Usage: tman shutdown [--force]");
+        throw new Error("Usage: rucan shutdown [--force]");
       console.log(
         `Stopping agent on ${host ?? "the local host"}${argument ? " and terminating managed sessions" : ""}`,
       );
@@ -72,7 +72,7 @@ export async function runSessionCommand(
       });
       console.log(JSON.stringify(description, null, 2));
     } else {
-      if (!session) throw new Error(`Usage: tman ${command} <session>`);
+      if (!session) throw new Error(`Usage: rucan ${command} <session>`);
       if (command === "kill") {
         console.log(`Stopping session ${session} on ${host ?? "local agent"}`);
         await client.request({ type: "kill", session });
@@ -83,7 +83,7 @@ export async function runSessionCommand(
         );
       } else if (command === "rename") {
         if (rest.length !== 1 || !rest[0])
-          throw new Error("Usage: tman rename <session> <new name>");
+          throw new Error("Usage: rucan rename <session> <new name>");
         console.log(
           JSON.stringify(
             await client.request({ type: "rename", session, name: rest[0] }),

@@ -14,10 +14,10 @@ export async function runDoctorCommand(
     args.length !== 1 &&
     (args.length !== 3 || args[1] !== "--host" || !args[2])
   ) {
-    throw new Error("Usage: tman doctor [--host <alias>]");
+    throw new Error("Usage: rucan doctor [--host <alias>]");
   }
   const summary: Record<string, unknown> = {
-    tman: version,
+    rucan: version,
     node: process.version,
     platform: `${process.platform}/${process.arch}`,
     config: configPath(),

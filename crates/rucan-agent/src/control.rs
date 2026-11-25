@@ -359,8 +359,8 @@ fn spawn(
     program.args(args);
     program.cwd(&cwd);
     program.env("TERM", "xterm-256color");
-    program.env("TMAN_SESSION_ID", id.to_string());
-    program.env("TMAN_AGENT_SOCKET", socket_path);
+    program.env("RUCAN_SESSION_ID", id.to_string());
+    program.env("RUCAN_AGENT_SOCKET", socket_path);
     let native = NativeSession::spawn(
         program,
         size(rows, cols),

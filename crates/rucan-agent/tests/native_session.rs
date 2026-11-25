@@ -1,6 +1,6 @@
 use portable_pty::{CommandBuilder, PtySize};
+use rucan_agent::session::{NativeSession, Persistence, ProcessState};
 use std::time::{Duration, Instant};
-use tman_agent::session::{NativeSession, Persistence, ProcessState};
 
 async fn await_condition(mut condition: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(5);

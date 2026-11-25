@@ -9,7 +9,7 @@ import {
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-const repo = "codevilot/termanager";
+let repo;
 const workflow = "release-candidate.yml";
 const registry = "https://registry.npmjs.org/";
 const { name, version } = JSON.parse(
@@ -111,7 +111,7 @@ async function prepare(commit, destination) {
       "--repo",
       repo,
       "--name",
-      "tman-release-candidate",
+      "rucan-release-candidate",
       "--dir",
       temporary,
     ]);
@@ -137,6 +137,17 @@ try {
       "Usage: npm run release:prepare | npm run release:publish [-- --dry-run]",
     );
   }
+  repo = read("gh", [
+    "repo",
+    "view",
+    "--json",
+    "nameWithOwner",
+    "--jq",
+    ".nameWithOwner",
+  ]);
+  if (!/^codevilot\/(?:termanager|rucan)$/u.test(repo)) {
+    throw new Error("Run releases from the official repository.");
+  }
   const commit = read("git", ["rev-parse", "HEAD"]);
   const destination = resolve("target", "npm-release", commit);
   if (action === "prepare") await prepare(commit, destination);
@@ -159,7 +170,7 @@ try {
   }
 } catch (error) {
   console.error(
-    `TMAN release: ${error instanceof Error ? error.message : String(error)}`,
+    `RUCAN release: ${error instanceof Error ? error.message : String(error)}`,
   );
   process.exitCode = 1;
 }

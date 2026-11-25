@@ -5,7 +5,7 @@ flowchart TD
   UI[TypeScript CLI and workspace UI] --> SDK[Client SDK and shared protocol]
   SDK --> Local[Unix domain socket]
   SDK --> SSH[OpenSSH stdio bridge]
-  Local --> Agent[Rust tman-agent]
+  Local --> Agent[Rust rucan-agent]
   SSH --> Agent
   Agent --> PTY[Native PTY and authoritative terminal state]
 ```

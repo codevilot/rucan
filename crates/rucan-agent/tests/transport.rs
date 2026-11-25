@@ -1,8 +1,8 @@
+use rucan_agent::framing::{read_frame, write_frame};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
-use tman_agent::framing::{read_frame, write_frame};
 use tokio::net::UnixStream;
 
 struct Service(Child);
@@ -15,7 +15,7 @@ impl Drop for Service {
 }
 
 fn command(path: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_tman-agent"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_rucan-agent"));
     command.arg("serve").arg("--socket").arg(path);
     command
 }

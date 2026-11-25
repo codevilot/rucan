@@ -61,7 +61,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc -p apps/cli
       - run: docker build -f tests/e2e/ssh.Dockerfile --target artifact --output type=local,dest=target/ssh-e2e .
-      - run: docker build -f tests/e2e/ssh.Dockerfile --target remote -t tman-e2e-ssh:local .
-      - run: docker build -f tests/e2e/ssh.Dockerfile --target remote-tmux -t tman-e2e-tmux:local .
+      - run: docker build -f tests/e2e/ssh.Dockerfile --target remote -t rucan-e2e-ssh:local .
+      - run: docker build -f tests/e2e/ssh.Dockerfile --target remote-tmux -t rucan-e2e-tmux:local .
       - run: python3 tests/e2e/remote_ssh.py
       - run: python3 tests/e2e/remote_ssh.py --tmux

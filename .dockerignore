@@ -2,8 +2,8 @@
 !Cargo.toml
 !Cargo.lock
 !crates/
-!crates/tman-agent/
-!crates/tman-agent/**
+!crates/rucan-agent/
+!crates/rucan-agent/**
 !packages/
 !packages/protocol/
 !packages/protocol/**

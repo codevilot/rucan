@@ -37,7 +37,7 @@ export async function runRemoteCommand(
     console.log(`Agent ready on ${host} (${platform.os}/${platform.arch}).`);
   } else {
     throw new Error(
-      "Usage: tman remote inspect <host> | remote install <host> [<binary> <trusted-sha256>] | remote open <host> [session]",
+      "Usage: rucan remote inspect <host> | remote install <host> [<binary> <trusted-sha256>] | remote open <host> [session]",
     );
   }
   return true;

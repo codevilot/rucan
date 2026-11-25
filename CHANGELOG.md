@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Renamed the project and npm package to Termanager. The CLI is `tman` and the native agent is `tman-agent`.
+- Renamed the project, npm package, and CLI to Rucan. The native agent is `rucan-agent`.
 
 - Added a strict YAML config loader and a labeled workspace fixture.
 - Added a native PTY probe and a reference terminal parser experiment.

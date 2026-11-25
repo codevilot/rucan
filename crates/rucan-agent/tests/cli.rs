@@ -2,7 +2,7 @@ use std::process::Command;
 
 #[test]
 fn reports_version_and_rejects_session_commands() {
-    let binary = env!("CARGO_BIN_EXE_tman-agent");
+    let binary = env!("CARGO_BIN_EXE_rucan-agent");
     let version = Command::new(binary)
         .arg("--version")
         .output()
@@ -10,7 +10,7 @@ fn reports_version_and_rejects_session_commands() {
     assert!(version.status.success());
     assert_eq!(
         String::from_utf8_lossy(&version.stdout),
-        concat!("tman-agent ", env!("CARGO_PKG_VERSION"), "\n"),
+        concat!("rucan-agent ", env!("CARGO_PKG_VERSION"), "\n"),
     );
     let unsupported = Command::new(binary)
         .arg("serve")
