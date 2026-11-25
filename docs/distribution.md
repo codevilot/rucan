@@ -7,3 +7,24 @@ Maintainers can verify a candidate's provenance against this repository, run the
 Packaged clients can run `ssui remote install <alias>` and transfer the matching bundled binary to a host without internet access. Development builds can pass a trusted binary and SHA-256 explicitly. This command is the user's installation approval. The remote shell verifies the hash again, runs a version probe, and links the fully written executable into place. Different existing artifacts are left in place. An incompatible running agent must be stopped explicitly before replacing it. Compatible CLI updates reuse an existing agent and socket.
 
 The startup update check is asynchronous and caches the stable registry response. The user can disable it in configuration, skip a version, or use `ssui update --apply` to approve a detected global npm or pnpm update. The updater delegates package installation to the detected manager and does not request elevated privileges.
+
+## Maintainer CLI
+
+From the repository root with GitHub CLI authenticated and the latest public
+`main` commit checked out, prepare and inspect an attested candidate:
+
+```sh
+npm run release:prepare
+npm run release:publish -- --dry-run
+```
+
+Preparation reuses a successful candidate for the current commit or starts and
+watches the four-platform workflow. It stores the verified archive under
+`target/npm-release/<commit>/`.
+
+To publish the candidate after review:
+
+```sh
+npm login --registry=https://registry.npmjs.org/
+npm run release:publish
+```
