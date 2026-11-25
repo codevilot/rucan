@@ -16,7 +16,7 @@ import fcntl
 from local_tty import read_until
 
 NODE = ["node", "apps/cli/dist/main.js"]
-HOST = "ssux-offline-e2e"
+HOST = "tman-offline-e2e"
 
 
 def output(command, env=None):
@@ -24,7 +24,7 @@ def output(command, env=None):
 
 
 def shell(env, script):
-    return output(["ssh", "-F", env["SSUX_SSH_CONFIG"], HOST, script], env)
+    return output(["ssh", "-F", env["TMAN_SSH_CONFIG"], HOST, script], env)
 
 
 def environment(root, client, container, host_key):
@@ -34,13 +34,13 @@ def environment(root, client, container, host_key):
     known.write_text(f"{HOST} {host_key}\n")
     config = root / f"{client}-ssh"
     config.write_text(
-        f"Host {HOST}\n  HostKeyAlias {HOST}\n  User ssux\n"
+        f"Host {HOST}\n  HostKeyAlias {HOST}\n  User tman\n"
         f"  ProxyCommand docker exec -i {container} nc 127.0.0.1 22\n"
         f"  IdentityFile {key}\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n"
         f"  UserKnownHostsFile {known}\n  ControlMaster no\n  BatchMode yes\n"
     )
     return (
-        dict(os.environ, SSUX_SSH_CONFIG=str(config), XDG_CONFIG_HOME=str(root / client), XDG_CACHE_HOME=str(root / client / "cache"),
+        dict(os.environ, TMAN_SSH_CONFIG=str(config), XDG_CONFIG_HOME=str(root / client), XDG_CACHE_HOME=str(root / client / "cache"),
              TERM="xterm-256color"),
         key.with_suffix(".pub").read_bytes(),
     )
@@ -69,12 +69,12 @@ def stop_terminal(master, process, signum):
 
 
 def exercise_tmux(env):
-    shell(env, "tmux new-session -d -s outside-ssux -c /tmp")
+    shell(env, "tmux new-session -d -s outside-tman -c /tmp")
     listing = json.loads(output(NODE + ["tmux", "ls", "--host", HOST], env))
-    assert listing["available"] and [item["name"] for item in listing["sessions"]] == ["outside-ssux"], (listing, shell(env, 'tmux list-sessions -F "#{session_id}|#{session_name}|#{session_path}"'))
-    master, process = start_terminal(env, None, ["tmux", "open", "--host", HOST, "outside-ssux"])
+    assert listing["available"] and [item["name"] for item in listing["sessions"]] == ["outside-tman"], (listing, shell(env, 'tmux list-sessions -F "#{session_id}|#{session_name}|#{session_path}"'))
+    master, process = start_terminal(env, None, ["tmux", "open", "--host", HOST, "outside-tman"])
     try:
-        read_until(master, b"outside-ssux")
+        read_until(master, b"outside-tman")
         os.write(master, b"printf 'TMUX-%s\\n' attached\r")
         read_until(master, b"TMUX-attached")
         os.write(master, b"\7")
@@ -86,9 +86,9 @@ def exercise_tmux(env):
         assert process.wait(timeout=5) == 0
     finally:
         stop_terminal(master, process, signal.SIGTERM)
-    assert shell(env, "tmux has-session -t outside-ssux && printf preserved") == "preserved"
+    assert shell(env, "tmux has-session -t outside-tman && printf preserved") == "preserved"
     inventory = json.loads(output(NODE + ["ls", "--host", HOST], env))
-    external = next(item for item in inventory if item["name"] == "outside-ssux")
+    external = next(item for item in inventory if item["name"] == "outside-tman")
     failed = subprocess.run(NODE + ["kill", "--host", HOST, external["id"]], env=env, capture_output=True, text=True, check=False)
     assert failed.returncode and "externally owned tmux" in failed.stderr
 
@@ -109,8 +109,8 @@ def run(root, container, artifact, with_tmux):
     second, second_key = environment(root, "client-c", container, host_key)
     subprocess.run(
         ["docker", "exec", "-i", container, "sh", "-c",
-         "cat > /home/ssux/.ssh/authorized_keys && chmod 600 /home/ssux/.ssh/authorized_keys"
-         " && chown ssux:ssux /home/ssux/.ssh/authorized_keys"],
+         "cat > /home/tman/.ssh/authorized_keys && chmod 600 /home/tman/.ssh/authorized_keys"
+         " && chown tman:tman /home/tman/.ssh/authorized_keys"],
         input=first_key + second_key, check=True,
     )
     assert shell(first, 'for tool in node npm rustc cargo; do ! command -v "$tool" || exit 1; done; printf offline') == "offline"
@@ -163,13 +163,13 @@ def run(root, container, artifact, with_tmux):
 
 if __name__ == "__main__":
     with_tmux = "--tmux" in sys.argv
-    image = "ssux-e2e-tmux:local" if with_tmux else "ssux-e2e-ssh:local"
-    with tempfile.TemporaryDirectory(prefix="ssux-ssh-") as temporary:
+    image = "tman-e2e-tmux:local" if with_tmux else "tman-e2e-ssh:local"
+    with tempfile.TemporaryDirectory(prefix="tman-ssh-") as temporary:
         container_id = output([
             "docker", "run", "--init", "--rm", "-d", "--network", "none", image,
         ])
         try:
-            run(Path(temporary), container_id, Path("target/ssh-e2e/ssux-agent").resolve(), with_tmux)
+            run(Path(temporary), container_id, Path("target/ssh-e2e/tman-agent").resolve(), with_tmux)
         finally:
             subprocess.run(["docker", "stop", "-t", "2", container_id], check=False, stdout=subprocess.DEVNULL)
     print("Isolated SSH tmux ownership passed." if with_tmux else "Isolated SSH disconnect and reconnect passed.")

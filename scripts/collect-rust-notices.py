@@ -34,7 +34,7 @@ for target in TARGETS:
 
 out = Path(sys.argv[1])
 with out.open("w", encoding="utf-8") as notices:
-    notices.write("Third-party notices for ssux-agent\n")
+    notices.write("Third-party notices for tman-agent\n")
     for (name, version), package in sorted(packages.items()):
         directory = Path(package["manifest_path"]).parent
         files = sorted(

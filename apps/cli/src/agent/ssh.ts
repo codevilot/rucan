@@ -27,10 +27,10 @@ const commonSshArguments = [
   "StrictHostKeyChecking=yes",
 ];
 const remotePaths =
-  'bin="$HOME/.local/lib/ssux/ssux-agent"; socket="/tmp/ssux-$(id -u)/agent.sock"';
+  'bin="$HOME/.local/lib/tman/tman-agent"; socket="/tmp/tman-$(id -u)/agent.sock"';
 const bridge = `${remotePaths}
 if [ ! -x "$bin" ]; then
-  printf '%s\\n' 'ssux-agent is missing; install a verified binary with ssux remote install' >&2
+  printf '%s\\n' 'tman-agent is missing; install a verified binary with tman remote install' >&2
   exit 127
 fi
 exec "$bin" connect --socket "$socket"`;
@@ -57,9 +57,9 @@ function sshArguments(host: string, script: string): string[] {
   if (!validSshHost(host))
     throw new Error("Expected an OpenSSH alias or DNS hostname");
   const quoted = "'" + script.replaceAll("'", "'\\''") + "'";
-  const config = process.env.SSUX_SSH_CONFIG;
+  const config = process.env.TMAN_SSH_CONFIG;
   if (config && !isAbsolute(config))
-    throw new Error("SSUX_SSH_CONFIG must be absolute");
+    throw new Error("TMAN_SSH_CONFIG must be absolute");
   const options = config ? ["-F", config] : [];
   return [...commonSshArguments, ...options, "--", host, `sh -c ${quoted}`];
 }

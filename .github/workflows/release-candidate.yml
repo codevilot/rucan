@@ -23,21 +23,21 @@ jobs:
       - if: runner.os == 'Linux'
         run: |
           docker build -f tests/e2e/ssh.Dockerfile --target artifact --output type=local,dest=target/distribution .
-          file target/distribution/ssux-agent
-          target/distribution/ssux-agent --version
+          file target/distribution/tman-agent
+          target/distribution/tman-agent --version
       - if: runner.os == 'macOS'
         env:
           MACOSX_DEPLOYMENT_TARGET: "12.0"
         run: |
           rustup toolchain install stable --profile minimal
-          cargo +stable build --locked --release -p ssux-agent
+          cargo +stable build --locked --release -p tman-agent
           mkdir -p target/distribution
-          cp target/release/ssux-agent target/distribution/
-          target/distribution/ssux-agent --version
+          cp target/release/tman-agent target/distribution/
+          target/distribution/tman-agent --version
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}
-          path: target/distribution/ssux-agent
+          path: target/distribution/tman-agent
           if-no-files-found: error
   package:
     needs: agents
@@ -61,18 +61,18 @@ jobs:
       - run: node scripts/stage-package.mjs target/target-artifacts target/npm-staging
       - run: |
           npm pack ./target/npm-staging --pack-destination target
-          npm install --prefix target/package-smoke --ignore-scripts "$PWD"/target/ssux-*.tgz
-          target/package-smoke/node_modules/.bin/ssux --version
+          npm install --prefix target/package-smoke --ignore-scripts "$PWD"/target/termanager-*.tgz
+          target/package-smoke/node_modules/.bin/tman --version
       - uses: actions/attest-build-provenance@v3
         with:
           subject-path: |
-            target/ssux-*.tgz
+            target/termanager-*.tgz
             target/npm-staging/agents/manifest.json
-            target/npm-staging/agents/*/ssux-agent
+            target/npm-staging/agents/*/tman-agent
       - uses: actions/upload-artifact@v7
         with:
-          name: ssux-release-candidate
+          name: tman-release-candidate
           path: |
-            target/ssux-*.tgz
+            target/termanager-*.tgz
             target/npm-staging/agents/
           if-no-files-found: error

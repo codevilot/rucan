@@ -27,7 +27,7 @@ const cargo = JSON.parse(
   ),
 );
 const agentVersion = cargo.packages.find(
-  ({ name }) => name === "ssux-agent",
+  ({ name }) => name === "tman-agent",
 )?.version;
 if (metadata.version !== agentVersion)
   throw new Error("Agent and CLI versions must match");
@@ -49,12 +49,12 @@ const bundled = ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64"];
 const platforms = {};
 mkdirSync(join(output, "agents"), { recursive: true });
 for (const platform of bundled) {
-  const source = join(artifactRoot, platform, "ssux-agent");
+  const source = join(artifactRoot, platform, "tman-agent");
   const payload = readFileSync(source);
   validatePlatform(platform, payload);
   const directory = join(output, "agents", platform);
   mkdirSync(directory);
-  const binary = join(directory, "ssux-agent");
+  const binary = join(directory, "tman-agent");
   writeFileSync(binary, payload, { mode: 0o755 });
   platforms[platform] = createHash("sha256").update(payload).digest("hex");
 }

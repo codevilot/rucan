@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "SSUX negotiation message",
+  "title": "TMAN negotiation message",
   "$defs": {
     "version": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "capabilities": {

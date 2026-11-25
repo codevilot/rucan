@@ -61,7 +61,7 @@ pub fn bridge(path: &Path, auto_start: bool) -> io::Result<()> {
     };
     let mut incoming = outgoing.try_clone()?;
     thread::Builder::new()
-        .name("ssux-bridge-input".into())
+        .name("tman-bridge-input".into())
         .spawn(move || {
             let _ = io::copy(&mut io::stdin().lock(), &mut incoming);
             let _ = incoming.shutdown(Shutdown::Write);

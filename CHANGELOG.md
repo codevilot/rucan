@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Renamed the project, CLI, npm package, and native agent to SSUX.
+- Renamed the project and npm package to Termanager. The CLI is `tman` and the native agent is `tman-agent`.
 
 - Added a strict YAML config loader and a labeled workspace fixture.
 - Added a native PTY probe and a reference terminal parser experiment.
