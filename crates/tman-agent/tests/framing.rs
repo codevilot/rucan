@@ -1,4 +1,4 @@
-use ssux_agent::framing::{Frame, read_frame, write_frame};
+use tman_agent::framing::{Frame, read_frame, write_frame};
 
 fn hex_bytes(hex: &str) -> Vec<u8> {
     if hex == "-" {

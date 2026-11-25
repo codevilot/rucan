@@ -51,7 +51,7 @@ export function WorkspaceView({ config }: { config: Config }): ReactElement {
     <Box flexDirection="column" width={columns} height={rows}>
       <Box justifyContent="space-between" paddingX={1}>
         <Text bold color="cyan">
-          ssux
+          tman
         </Text>
         <Text color="yellow">Fixture mode · agent offline</Text>
       </Box>

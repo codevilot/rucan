@@ -85,7 +85,7 @@ pub(crate) enum Operation {
 `;
 const typescript = `${heading}export type Operation = ${variants.map(typescriptVariant).join(" | ")};\n`;
 const tsPath = "apps/cli/src/protocol/operation.ts";
-const rustPath = "crates/ssux-agent/src/operation.rs";
+const rustPath = "crates/tman-agent/src/operation.rs";
 const generated = {
   [tsPath]: await format(typescript, {
     ...(await resolveConfig(tsPath)),

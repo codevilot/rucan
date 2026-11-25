@@ -1,12 +1,14 @@
 # Distribution and release candidates
 
+The public npm package is `termanager` and it installs the `tman` command.
+
 The release-candidate workflow builds native binaries for Linux AMD64 and ARM64 using static musl builds, and for macOS AMD64 and ARM64 with a macOS 12 deployment target. It stages a version-matched npm tarball containing the four agents, their SHA-256 manifest, and the CLI. The workflow attests the resulting artifacts and uploads them to the workflow run. It does not create a GitHub Release or publish to npm.
 
-Maintainers can verify a candidate's provenance against this repository, run the smoke tests on each target, and review dependency notices and the package name before approving a release. npm should use trusted publishing or provenance. A GitHub Release should carry the attested individual agent binaries and manifest. The release manifest inside the npm tarball is part of the authenticated npm artifact. SSUX verifies its digest before starting a bundled local binary and before transferring and installing a remote binary. Development binaries explicitly supplied with `SSUX_AGENT_BINARY` are trusted by the caller.
+Maintainers can verify a candidate's provenance against this repository, run the smoke tests on each target, and review dependency notices and the package name before approving a release. npm should use trusted publishing or provenance. A GitHub Release should carry the attested individual agent binaries and manifest. The release manifest inside the npm tarball is part of the authenticated npm artifact. TMAN verifies its digest before starting a bundled local binary and before transferring and installing a remote binary. Development binaries explicitly supplied with `TMAN_AGENT_BINARY` are trusted by the caller.
 
-Packaged clients can run `ssux remote install <alias>` and transfer the matching bundled binary to a host without internet access. Development builds can pass a trusted binary and SHA-256 explicitly. This command is the user's installation approval. The remote shell verifies the hash again, runs a version probe, and links the fully written executable into place. Different existing artifacts are left in place. An incompatible running agent must be stopped explicitly before replacing it. Compatible CLI updates reuse an existing agent and socket.
+Packaged clients can run `tman remote install <alias>` and transfer the matching bundled binary to a host without internet access. Development builds can pass a trusted binary and SHA-256 explicitly. This command is the user's installation approval. The remote shell verifies the hash again, runs a version probe, and links the fully written executable into place. Different existing artifacts are left in place. An incompatible running agent must be stopped explicitly before replacing it. Compatible CLI updates reuse an existing agent and socket.
 
-The startup update check is asynchronous and caches the stable registry response. The user can disable it in configuration, skip a version, or use `ssux update --apply` to approve a detected global npm or pnpm update. The updater delegates package installation to the detected manager and does not request elevated privileges.
+The startup update check is asynchronous and caches the stable registry response. The user can disable it in configuration, skip a version, or use `tman update --apply` to approve a detected global npm or pnpm update. The updater delegates package installation to the detected manager and does not request elevated privileges.
 
 ## Maintainer CLI
 

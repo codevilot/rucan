@@ -48,7 +48,7 @@ export async function openTmux(
   cwd: string,
   target: string | null,
 ): Promise<NativeWorkspace> {
-  const name = "ssux-" + Date.now().toString(36);
+  const name = "tman-" + Date.now().toString(36);
   return decodeWorkspace(
     await client.request({
       type: "tmux-open",

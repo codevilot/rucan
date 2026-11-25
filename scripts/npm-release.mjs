@@ -9,13 +9,13 @@ import {
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-const repo = "codevilot/ssux";
+const repo = "codevilot/termanager";
 const workflow = "release-candidate.yml";
 const registry = "https://registry.npmjs.org/";
-const { version } = JSON.parse(
+const { name, version } = JSON.parse(
   readFileSync(new URL("../apps/cli/package.json", import.meta.url), "utf8"),
 );
-const filename = `ssux-${version}.tgz`;
+const filename = `${name}-${version}.tgz`;
 
 function read(command, args) {
   return execFileSync(command, args, { encoding: "utf8" }).trim();
@@ -111,7 +111,7 @@ async function prepare(commit, destination) {
       "--repo",
       repo,
       "--name",
-      "ssux-release-candidate",
+      "tman-release-candidate",
       "--dir",
       temporary,
     ]);
@@ -159,7 +159,7 @@ try {
   }
 } catch (error) {
   console.error(
-    `SSUX release: ${error instanceof Error ? error.message : String(error)}`,
+    `TMAN release: ${error instanceof Error ? error.message : String(error)}`,
   );
   process.exitCode = 1;
 }
