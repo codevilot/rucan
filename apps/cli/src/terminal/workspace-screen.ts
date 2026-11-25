@@ -125,7 +125,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       : explorer
         ? { contentLines: explorer.content }
         : state.mode === "menu"
-          ? { contentLines: menuFor(state.update) }
+          ? { contentLines: menuFor(state.update, state.layout.sidebar > 0) }
           : state.mode === "exit"
             ? { contentLines: exitLines(state.host) }
             : state.mode === "command"

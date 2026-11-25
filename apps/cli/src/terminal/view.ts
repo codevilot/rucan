@@ -13,6 +13,9 @@ export type Mode =
   | "hosts"
   | "create";
 
+const paletteShortcut =
+  process.platform === "darwin" ? "Option+Space" : "Alt+Space";
+
 export function footerFor(
   mode: Mode,
   prefix: string,
@@ -45,11 +48,14 @@ export function footerFor(
     case "ssh":
       return "Esc Menu · Enter Connect";
     case "terminal":
-      return `${prefix} Menu (F12) · Alt+Space Search · exit Close shell`;
+      return `${prefix} Menu (F12) · ${paletteShortcut} Search · exit Close shell`;
   }
 }
 
-export function menuFor(update?: string): string[] {
+export function menuFor(
+  update: string | undefined,
+  sidebarVisible: boolean,
+): string[] {
   return [
     "Workspace actions",
     "Space Search actions",
@@ -65,6 +71,7 @@ export function menuFor(update?: string): string[] {
     "T Tmux",
     "S History",
     "R Rename",
+    sidebarVisible ? "B Hide sidebar" : "B Show sidebar",
     update ? `U Update to v${update}` : "U Check for updates",
   ];
 }

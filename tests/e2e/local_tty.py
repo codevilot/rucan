@@ -9,6 +9,7 @@ import shlex
 import signal
 import struct
 import subprocess
+import sys
 import tempfile
 import termios
 import time
@@ -93,6 +94,7 @@ def exercise(node, env):
             read_until(master, b"\x1b[2J")
             os.write(master, b"stty size\r")
             read_until(master, f"{rows - 2} {terminal_cols}".encode())
+        exercise_sidebar(master)
         os.write(master, b"printf 'PTY-%s\\n' smoke\r")
         read_until(master, b"PTY-smoke")
         nested = shlex.join([node[0], str(Path(node[1]).resolve())])
@@ -144,7 +146,35 @@ def exercise(node, env):
         os.close(slave)
 
 
+def exercise_sidebar(master):
+    def expect_width(width):
+        os.write(master, b"stty size\r")
+        read_until(master, f"22 {width}".encode())
+
+    def drag(source, destination):
+        os.write(master, (
+            f"\x1b[<0;{source};6M\x1b[<32;{destination};6M\x1b[<0;{destination};6m"
+        ).encode())
+
+    drag(25, 40)
+    expect_width(60)
+    for before, after, width in (
+        (b"B Hide sidebar", b"B Show sidebar", 100),
+        (b"B Show sidebar", b"B Hide sidebar", 60),
+    ):
+        os.write(master, b"\x07")
+        read_until(master, before)
+        os.write(master, b"b")
+        read_until(master, after)
+        os.write(master, b"\x1b")
+        read_until(master, b"ctrl+g Menu")
+        expect_width(width)
+    drag(40, 25)
+    expect_width(75)
+
+
 def exercise_session_exit(node, env):
+    palette_hint = b"Option+Space Search" if sys.platform == "darwin" else b"Alt+Space Search"
     def new(name):
         session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
         subprocess.check_output(node + ["rename", session["id"], name], env=env)
@@ -182,11 +212,11 @@ def exercise_session_exit(node, env):
         frame = read_until(master, "ssh▏".encode())
         assert "›  SSH connect".encode() in frame
         os.write(master, b"\x1b")
-        read_until(master, b"Alt+Space Search")
+        read_until(master, palette_hint)
         os.write(master, b"\x1b[24~ ")
         read_until(master, b"Rucan commands")
         os.write(master, b"\x1b")
-        read_until(master, b"Alt+Space Search")
+        read_until(master, palette_hint)
         os.write(master, b"\x1b[<0;3;23M")
         read_until(master, b"Enter Connect")
         os.write(master, b"ops@192.0.2.7")

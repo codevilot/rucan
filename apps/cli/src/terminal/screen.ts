@@ -9,6 +9,7 @@ import {
   type Header,
 } from "./chrome.js";
 import type { Style, TerminalSnapshot } from "./snapshot.js";
+import { sidebarWidth } from "./sidebar-layout.js";
 
 const hideCursor = "\x1b[?25l";
 const move = (row: number, col: number): string => `\x1b[${row};${col}H`;
@@ -21,8 +22,12 @@ export interface Geometry {
   terminalCols: number;
 }
 
-export function geometry(rows: number, cols: number): Geometry {
-  const sidebar = cols >= 48 ? Math.max(16, Math.floor(cols * 0.25)) : 0;
+export function geometry(
+  rows: number,
+  cols: number,
+  preferredSidebar?: number,
+): Geometry {
+  const sidebar = sidebarWidth(cols, preferredSidebar);
   const terminalCols = Math.max(1, Math.min(500, cols - sidebar));
   const terminalRows = Math.max(
     1,
@@ -166,7 +171,7 @@ export class Screen {
     const mouse =
       grid?.mouse === "any-motion"
         ? "1003"
-        : grid?.mouse === "button-motion"
+        : layout.sidebar > 0 || grid?.mouse === "button-motion"
           ? "1002"
           : "1000";
     if (mouse !== this.#mouseMode) {

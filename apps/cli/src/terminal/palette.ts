@@ -7,6 +7,7 @@ interface PaletteAction {
 const actions: readonly PaletteAction[] = [
   { key: "n", label: "New workspace" },
   { key: "c", label: "SSH connect" },
+  { key: "b", label: "Toggle sidebar" },
   { key: "e", label: "Browse files" },
   { key: "h", label: "Switch host" },
   { key: "t", label: "Manage tmux sessions" },
