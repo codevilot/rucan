@@ -19,7 +19,7 @@ jobs:
             platform: darwin-arm64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - if: runner.os == 'Linux'
         run: |
           docker build -f tests/e2e/ssh.Dockerfile --target artifact --output type=local,dest=target/distribution .
@@ -47,7 +47,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
