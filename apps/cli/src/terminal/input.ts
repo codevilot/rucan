@@ -13,6 +13,7 @@ export interface MouseEvent {
 export type TerminalInput =
   | { type: "bytes"; bytes: Buffer }
   | { type: "prefix" }
+  | { type: "palette" }
   | { type: "paste-start" | "paste-end" }
   | ({ type: "mouse" } & MouseEvent);
 
@@ -71,6 +72,9 @@ export class InputRouter {
       let incomplete = false;
       if (byte === this.#prefix && !this.#paste) {
         event = { type: "prefix" };
+      } else if (byte === 0x1b && input[index + 1] === 0x20 && !this.#paste) {
+        event = { type: "palette" };
+        length = 2;
       } else if (byte === 0x1b) {
         const remainder = input.subarray(index);
         const marker = this.#paste ? pasteEnd : pasteStart;

@@ -4,7 +4,6 @@ import {
   installUpdate,
   skipUpdate,
 } from "../release/updates.js";
-import { version } from "../release/version.js";
 import { Explorer } from "../explorer/explorer.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
@@ -13,13 +12,11 @@ import type { Config, WorkspaceConfig } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
-import {
-  exitLines,
-  footerFor,
-  menuFor,
-  selectionLines,
-  type Mode,
-} from "./view.js";
+import { CommandPalette } from "./palette.js";
+import { sidebarActionAt } from "./sidebar-actions.js";
+import { openSshShell } from "./ssh-shell.js";
+import type { Mode } from "./view.js";
+import { workspaceScreen } from "./workspace-screen.js";
 import { listTmux, openTmux, type TmuxTarget } from "./tmux.js";
 import { TerminalWatch } from "./watch.js";
 import { watchWorkspaceList } from "./workspace-refresh.js";
@@ -31,7 +28,6 @@ import {
   decodeWorkspace,
   listWorkspaces,
   reconcileWorkspaces,
-  workspaceLabels,
   type NativeWorkspace,
 } from "./workspaces.js";
 
@@ -107,6 +103,8 @@ class InteractiveWorkspace {
   #name = "";
   #command = "";
   #commandError = false;
+  #palette: CommandPalette | undefined;
+  #sshTarget = "";
   #tmux: TmuxTarget[] = [];
   #tmuxIndex = 0;
   #workspaces: NativeWorkspace[] = [];
@@ -357,6 +355,13 @@ class InteractiveWorkspace {
   }
 
   async #input(event: TerminalInput): Promise<void> {
+    if (event.type === "palette") {
+      if (this.#mode === "terminal" || this.#mode === "menu")
+        this.#openPalette();
+      else if (this.#mode === "palette") this.#mode = "terminal";
+      this.#draw();
+      return;
+    }
     if (event.type === "prefix") {
       if (this.#mode === "explorer") this.#explorer.leave();
       if (this.#mode === "hosts") this.#hostTrial++;
@@ -372,8 +377,16 @@ class InteractiveWorkspace {
         !event.release &&
         event.button === 0
       ) {
+        const action = sidebarActionAt(event.row, this.#layout.rows - 2);
         const workspace = this.#workspaces[event.row - 3];
-        if (workspace && event.col === 4 && workspace.ownership === "managed")
+        if (action) {
+          await this.#menu(action);
+          this.#draw();
+        } else if (
+          workspace &&
+          event.col === 4 &&
+          workspace.ownership === "managed"
+        )
           await this.#pin(workspace);
         else if (workspace) await this.#select(workspace);
       } else if (this.#mode === "terminal" && this.#snapshot) {
@@ -395,7 +408,18 @@ class InteractiveWorkspace {
       return;
     }
     const key = event.bytes.toString("utf8");
-    if (this.#mode === "explorer") {
+    if (this.#mode === "palette") {
+      if (key === "\x1b") this.#mode = "terminal";
+      else {
+        const action = this.#palette?.input(key);
+        if (action) {
+          this.#mode = "menu";
+          await this.#menu(action);
+        }
+      }
+    } else if (this.#mode === "ssh") {
+      await this.#readSshTarget(key);
+    } else if (this.#mode === "explorer") {
       if (key === "\x1b") {
         this.#explorer.leave();
         this.#mode = "menu";
@@ -595,6 +619,8 @@ class InteractiveWorkspace {
   async #menu(key: string): Promise<void> {
     if (key === "\x1b") {
       this.#mode = "terminal";
+    } else if (key === " ") {
+      this.#openPalette();
     } else if (key.startsWith("/")) {
       this.#command = "";
       this.#commandError = false;
@@ -628,6 +654,9 @@ class InteractiveWorkspace {
       );
       this.#newIndex = 0;
       this.#mode = "create";
+    } else if (key === "c") {
+      this.#sshTarget = "";
+      this.#mode = "ssh";
     } else if (key === "h") {
       this.#hosts = [
         undefined,
@@ -656,6 +685,28 @@ class InteractiveWorkspace {
         this.#mode = "terminal";
       }
     }
+  }
+
+  #openPalette(): void {
+    this.#palette = new CommandPalette(Boolean(this.#selected), this.#update);
+    this.#mode = "palette";
+  }
+
+  async #readSshTarget(key: string): Promise<void> {
+    if (key === "\x1b") this.#mode = "menu";
+    else if (key === "\x7f") this.#sshTarget = this.#sshTarget.slice(0, -1);
+    else if (key === "\r") {
+      const workspace = await openSshShell(
+        this.#client,
+        this.#config,
+        this.#layout,
+        this.#sshTarget,
+      );
+      this.#workspaces.push(workspace);
+      this.#mode = "terminal";
+      await this.#select(workspace);
+    } else if (/^[a-zA-Z0-9_.:@-]+$/u.test(key))
+      this.#sshTarget = (this.#sshTarget + key).slice(0, 128);
   }
 
   async #readCommand(input: string): Promise<void> {
@@ -698,103 +749,36 @@ class InteractiveWorkspace {
 
   #draw(): void {
     if (this.#stopped) return;
-    const selected = this.#selected;
-    const title = selected
-      ? `${selected.name}${selected.persistent ? " ◆" : ""}`
-      : "No session";
-    const footer = footerFor(
-      this.#mode,
-      this.#config.terminal.prefix_key,
-      this.#name,
-      this.#offset,
-    );
-    const explorer =
-      this.#mode === "explorer"
-        ? this.#explorer.layout(this.#layout.rows - 2)
-        : undefined;
-    if (this.#mode === "update" && this.#update) {
-      this.#screen.draw({
+    const rows = this.#layout.rows - 2;
+    this.#screen.draw(
+      workspaceScreen({
+        config: this.#config,
+        mode: this.#mode,
+        host: this.#host,
+        status: this.#status,
+        update: this.#update,
         layout: this.#layout,
-        header: `Update available: v${version} → v${this.#update}`,
-        footer,
-        sidebarLines: [],
-        snapshot: undefined,
-        showCursor: false,
-      });
-      return;
-    }
-    const running = this.#snapshot?.state === "running";
-    this.#screen.draw({
-      layout: this.#layout,
-      header: {
-        tab: title,
-        status:
-          this.#status ||
-          (running
-            ? this.#host
-              ? `${this.#host} connected`
-              : "Local agent connected"
-            : "No active workspace"),
-        healthy: running && !this.#status,
-      },
-      footer:
-        this.#update && this.#mode !== "exit"
-          ? `${footer} · U Review v${this.#update}`
-          : footer,
-      sidebarLines:
-        (this.#mode === "create"
-          ? selectionLines(
-              "OPEN WORKSPACE",
-              ["Default shell", ...this.#newEntries.map(({ name }) => name)],
-              this.#newIndex,
-              this.#layout.rows - 2,
-            )
-          : undefined) ??
-        (this.#mode === "hosts"
-          ? selectionLines(
-              "HOSTS",
-              this.#hosts.map((host) => host ?? "Local"),
-              this.#hostIndex,
-              this.#layout.rows - 2,
-            )
-          : undefined) ??
-        (this.#mode === "tmux"
-          ? selectionLines(
-              "TMUX SESSIONS",
-              this.#tmux.map((entry) => entry.name),
-              this.#tmuxIndex,
-              this.#layout.rows - 2,
-            )
-          : undefined) ??
-        explorer?.sidebar ??
-        workspaceLabels(this.#config, this.#workspaces, selected?.id),
-      ...(explorer
-        ? { contentLines: explorer.content }
-        : this.#mode === "menu"
-          ? { contentLines: menuFor(this.#update) }
-          : this.#mode === "exit"
-            ? { contentLines: exitLines(this.#host) }
-            : this.#mode === "command"
-              ? {
-                  contentLines: [
-                    `Command  /${this.#command}▏`,
-                    "",
-                    this.#commandError
-                      ? "Unknown command. Try /exit."
-                      : "/exit  Quit Rucan",
-                  ],
-                }
-              : {}),
-      snapshot:
-        explorer ||
-        this.#mode === "menu" ||
-        this.#mode === "exit" ||
-        this.#mode === "command"
-          ? undefined
-          : this.#mode === "history"
-            ? this.#history
-            : this.#snapshot,
-      showCursor: this.#mode === "terminal" && this.#controlsInput,
-    });
+        selected: this.#selected,
+        workspaces: this.#workspaces,
+        snapshot: this.#snapshot,
+        history: this.#history,
+        controlsInput: this.#controlsInput,
+        explorer:
+          this.#mode === "explorer" ? this.#explorer.layout(rows) : undefined,
+        newEntries: this.#newEntries,
+        newIndex: this.#newIndex,
+        hosts: this.#hosts,
+        hostIndex: this.#hostIndex,
+        tmux: this.#tmux,
+        tmuxIndex: this.#tmuxIndex,
+        name: this.#name,
+        offset: this.#offset,
+        command: this.#command,
+        commandError: this.#commandError,
+        sshTarget: this.#sshTarget,
+        paletteLines:
+          this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,
+      }),
+    );
   }
 }

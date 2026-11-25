@@ -1,6 +1,8 @@
 export type Mode =
   | "terminal"
   | "menu"
+  | "palette"
+  | "ssh"
   | "exit"
   | "command"
   | "explorer"
@@ -19,38 +21,44 @@ export function footerFor(
 ): string {
   switch (mode) {
     case "create":
-      return "↑↓ Choose workspace · Enter Open · Esc Back";
+      return "Esc Menu · ↑↓ Choose workspace · Enter Open";
     case "hosts":
-      return "↑↓ Select host · Enter Connect · Esc Back";
+      return "Esc Menu · ↑↓ Select host · Enter Connect";
     case "rename":
-      return `Rename workspace: ${name} · Enter Save · Esc Cancel`;
+      return `Esc Menu · Enter Save · Name ${name}`;
     case "history":
-      return `History · ${scrollback} lines back · ↑↓ Scroll · Esc Back`;
+      return `Esc Menu · ↑↓ Scroll · History ${scrollback} lines back`;
     case "update":
-      return "1 Update now · 2 Continue · 3 Skip this version";
+      return "Esc Terminal · 1 Update now · 2 Continue · 3 Skip this version";
     case "tmux":
-      return "↑↓ Select · Enter Attach · N Open New Tmux Session · Esc Back";
+      return "Esc Menu · ↑↓ Select · Enter Attach · N New tmux session";
     case "explorer":
-      return "↑↓ Select · Enter Expand/Preview · R Refresh · O Editor · Esc Back";
+      return "Esc Menu · ↑↓ Select · Enter Expand/Preview · R Refresh · O Editor";
     case "command":
-      return "Enter Run command · Esc Back";
+      return "Esc Menu · Enter Run command";
     case "exit":
-      return "Enter Keep all · Esc Back";
+      return "Esc Menu · Enter Keep all";
     case "menu":
-      return "Q Quit · Esc Return to terminal · ↑↓ / 1–9 Switch";
+      return "Esc Terminal · Q Quit · ↑↓ / 1–9 Switch";
+    case "palette":
+      return "Esc Terminal · ↑↓ Select · Enter Run";
+    case "ssh":
+      return "Esc Menu · Enter Connect";
     case "terminal":
-      return `${prefix} Menu (F12) · Type exit to close the current shell`;
+      return `${prefix} Menu (F12) · Alt+Space Search · exit Close shell`;
   }
 }
 
 export function menuFor(update?: string): string[] {
   return [
     "Workspace actions",
+    "Space Search actions",
     "",
     "/exit or Q  Quit Rucan",
     "D Close UI and keep sessions",
     "",
     "N New workspace",
+    "C SSH connect",
     "P Pin",
     "H Hosts",
     "E Files",

@@ -30,6 +30,8 @@ workspaces:
 
 The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. If the list is empty, use Ctrl+G, then N to open a new workspace.
 
+Press Alt+Space to search Rucan commands, or choose Space in the workspace menu. Use the sidebar buttons to open a new workspace or start an interactive SSH connection. The SSH button accepts an IP address, an OpenSSH alias, or `user@host` and runs OpenSSH on the current workspace host. OpenSSH verifies host keys and handles authentication in the terminal tab.
+
 Inside a managed shell, run `rucan` to see session commands. Use `npx rucan@latest` if you run Rucan through npm without a global installation.
 
 `pnpm dev config` validates the configuration and prints its path. The npm package installs the `rucan` command. After the first release:
