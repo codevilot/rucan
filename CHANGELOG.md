@@ -3,6 +3,7 @@
 ## 0.1.5
 
 - Showed Option+Space on macOS and Alt+Space on Linux in the command palette shortcut hint.
+- Made the sidebar resizable by dragging its divider and collapsible from the workspace menu.
 
 ## 0.1.4
 

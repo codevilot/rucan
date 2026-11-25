@@ -94,6 +94,7 @@ def exercise(node, env):
             read_until(master, b"\x1b[2J")
             os.write(master, b"stty size\r")
             read_until(master, f"{rows - 2} {terminal_cols}".encode())
+        exercise_sidebar(master)
         os.write(master, b"printf 'PTY-%s\\n' smoke\r")
         read_until(master, b"PTY-smoke")
         nested = shlex.join([node[0], str(Path(node[1]).resolve())])
@@ -143,6 +144,33 @@ def exercise(node, env):
             process.wait(timeout=5)
         os.close(master)
         os.close(slave)
+
+
+def exercise_sidebar(master):
+    def expect_width(width):
+        os.write(master, b"stty size\r")
+        read_until(master, f"22 {width}".encode())
+
+    def drag(source, destination):
+        os.write(master, (
+            f"\x1b[<0;{source};6M\x1b[<32;{destination};6M\x1b[<0;{destination};6m"
+        ).encode())
+
+    drag(25, 40)
+    expect_width(60)
+    for before, after, width in (
+        (b"B Hide sidebar", b"B Show sidebar", 100),
+        (b"B Show sidebar", b"B Hide sidebar", 60),
+    ):
+        os.write(master, b"\x07")
+        read_until(master, before)
+        os.write(master, b"b")
+        read_until(master, after)
+        os.write(master, b"\x1b")
+        read_until(master, b"ctrl+g Menu")
+        expect_width(width)
+    drag(40, 25)
+    expect_width(75)
 
 
 def exercise_session_exit(node, env):

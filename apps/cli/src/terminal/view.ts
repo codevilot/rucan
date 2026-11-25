@@ -52,7 +52,10 @@ export function footerFor(
   }
 }
 
-export function menuFor(update?: string): string[] {
+export function menuFor(
+  update: string | undefined,
+  sidebarVisible: boolean,
+): string[] {
   return [
     "Workspace actions",
     "Space Search actions",
@@ -68,6 +71,7 @@ export function menuFor(update?: string): string[] {
     "T Tmux",
     "S History",
     "R Rename",
+    sidebarVisible ? "B Hide sidebar" : "B Show sidebar",
     update ? `U Update to v${update}` : "U Check for updates",
   ];
 }

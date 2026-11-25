@@ -11,6 +11,7 @@ import type { TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
 import { CommandPalette } from "./palette.js";
 import { sidebarActionAt } from "./sidebar-actions.js";
+import { SidebarLayout } from "./sidebar-layout.js";
 import { openSshShell } from "./ssh-shell.js";
 import type { Mode } from "./view.js";
 import { workspaceScreen } from "./workspace-screen.js";
@@ -85,6 +86,7 @@ class InteractiveWorkspace {
   readonly #host: string | undefined;
   readonly #connect: () => Promise<SessionClient>;
   readonly #screen = new Screen(process.stdout);
+  readonly #sidebar = new SidebarLayout();
   readonly #explorer: Explorer;
   #layout = geometry(process.stdout.rows || 24, process.stdout.columns || 80);
   #mode: Mode = "terminal";
@@ -156,6 +158,7 @@ class InteractiveWorkspace {
         this.#layout = geometry(
           process.stdout.rows || 24,
           process.stdout.columns || 80,
+          this.#sidebar.preferred,
         );
         this.#draw();
         await this.#resize();
@@ -377,6 +380,16 @@ class InteractiveWorkspace {
     }
     if (event.type === "mouse") {
       if (this.#mode !== "terminal" && this.#mode !== "menu") return;
+      const drag = this.#sidebar.mouse(
+        event,
+        this.#layout.sidebar,
+        this.#layout.rows,
+      );
+      if (drag !== "pass") {
+        this.#applySidebar();
+        if (drag === "resize") await this.#resize();
+        return;
+      }
       if (
         event.col <= this.#layout.sidebar &&
         event.row >= 3 &&
@@ -650,6 +663,10 @@ class InteractiveWorkspace {
       this.#mode = "history";
     } else if (key === "u") {
       await this.#checkForUpdate();
+    } else if (key === "b") {
+      this.#sidebar.toggle();
+      this.#applySidebar();
+      await this.#resize();
     } else if (key === "t") {
       const inventory = await listTmux(this.#client);
       if (!inventory.available)
@@ -702,6 +719,15 @@ class InteractiveWorkspace {
   #openPalette(): void {
     this.#palette = new CommandPalette(Boolean(this.#selected), this.#update);
     this.#mode = "palette";
+  }
+
+  #applySidebar(): void {
+    this.#layout = geometry(
+      this.#layout.rows,
+      this.#layout.cols,
+      this.#sidebar.preferred,
+    );
+    this.#draw();
   }
 
   async #checkForUpdate(): Promise<void> {
