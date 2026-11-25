@@ -61,7 +61,7 @@ jobs:
       - run: node scripts/stage-package.mjs target/target-artifacts target/npm-staging
       - run: |
           npm pack ./target/npm-staging --pack-destination target
-          npm install --prefix target/package-smoke --ignore-scripts target/ssui-*.tgz
+          npm install --prefix target/package-smoke --ignore-scripts "$PWD"/target/ssui-*.tgz
           target/package-smoke/node_modules/.bin/ssui --version
       - uses: actions/attest-build-provenance@v3
         with:
