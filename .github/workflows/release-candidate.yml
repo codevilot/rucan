@@ -62,7 +62,7 @@ jobs:
       - run: |
           npm pack ./target/npm-staging --pack-destination target
           bash scripts/smoke-npm-package.sh "$PWD"/target/rucan-*.tgz
-      - uses: actions/attest-build-provenance@v3
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             target/rucan-*.tgz
