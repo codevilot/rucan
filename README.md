@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-Type `exit` at the shell prompt to close the current shell. To open Rucan's exit screen, press Ctrl+G and then Q, or enter `/exit` in the menu. Press Enter on the exit screen to keep sessions running. Ctrl+G and F12 open the workspace menu. On Mac keyboards with media keys, press Fn+F12 to send F12. P pins a session, D closes the UI and keeps sessions running, H selects a host, and E opens the file explorer. Arrow keys, digits and sidebar clicks switch workspaces. T opens optional tmux actions, and S browses scrollback. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`. Local and remote configuration examples follow.
+Type `exit` at the shell prompt to close the current shell. Open the command palette with F12, Option+Space on macOS, or Alt+Space on Linux. On Mac keyboards with media keys, press Fn+F12. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to choose an exit policy. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
 
 ```yaml
 version: 1
@@ -28,11 +28,11 @@ workspaces:
     persistence: persistent
 ```
 
-The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. If the list is empty, use Ctrl+G, then N to open a new workspace.
+The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. Use the sidebar or search the palette by workspace name or number to switch sessions.
 
-Press Option+Space on macOS or Alt+Space on Linux to search Rucan commands. If the terminal or desktop captures the shortcut, open the workspace menu and press Space. Use the sidebar buttons to open a new workspace or start an interactive SSH connection. The SSH button accepts an IP address, an OpenSSH alias, or `user@host` and runs OpenSSH on the current workspace host. OpenSSH verifies host keys and handles authentication in the terminal tab.
+Use the sidebar buttons to open a new workspace or start an interactive SSH connection. The SSH button accepts an IP address, an OpenSSH alias, or `user@host` and runs OpenSSH on the current workspace host. OpenSSH verifies host keys and handles authentication in the terminal tab.
 
-Drag the sidebar divider to resize it. Press B in the workspace menu to hide or show the sidebar.
+Drag the sidebar divider to resize it. Search the palette for **Hide sidebar** or **Show sidebar**.
 
 Inside a managed shell, run `rucan` to see session commands. Use `npx rucan@latest` if you run Rucan through npm without a global installation.
 

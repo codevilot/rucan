@@ -12,7 +12,6 @@ export interface MouseEvent {
 
 export type TerminalInput =
   | { type: "bytes"; bytes: Buffer }
-  | { type: "prefix" }
   | { type: "palette" }
   | { type: "paste-start" | "paste-end" }
   | ({ type: "mouse" } & MouseEvent);
@@ -41,15 +40,10 @@ function mouseReport(
     : undefined;
 }
 
-/** Recognize the menu prefix, bracketed paste, and the outer terminal's SGR mouse reports. */
+/** Recognize palette shortcuts, bracketed paste, and the outer terminal's SGR mouse reports. */
 export class InputRouter {
   #paste = false;
   #tail = Buffer.alloc(0);
-  #prefix: number;
-
-  constructor(prefix: string) {
-    this.#prefix = prefix.charCodeAt(prefix.length - 1) - 96;
-  }
 
   get hasPending(): boolean {
     return this.#tail.length > 0;
@@ -70,9 +64,7 @@ export class InputRouter {
       let event: TerminalInput | undefined;
       let length = 1;
       let incomplete = false;
-      if (byte === this.#prefix && !this.#paste) {
-        event = { type: "prefix" };
-      } else if (byte === 0x1b && input[index + 1] === 0x20 && !this.#paste) {
+      if (byte === 0x1b && input[index + 1] === 0x20 && !this.#paste) {
         event = { type: "palette" };
         length = 2;
       } else if (byte === 0x1b) {
@@ -92,7 +84,7 @@ export class InputRouter {
           if (f12.subarray(0, key.length).equals(key)) {
             incomplete = key.length < f12.length;
             if (!incomplete) {
-              event = { type: "prefix" };
+              event = { type: "palette" };
               length = f12.length;
             }
           } else {

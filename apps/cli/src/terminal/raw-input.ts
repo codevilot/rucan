@@ -7,8 +7,8 @@ interface Handler {
 }
 
 /** Set terminal input state for the lifetime of a mounted view. */
-export function mountRawInput(prefix: string, handler: Handler): () => void {
-  const router = new InputRouter(prefix);
+export function mountRawInput(handler: Handler): () => void {
+  const router = new InputRouter();
   const prior = process.stdin.isRaw;
   let active = true;
   let timer: ReturnType<typeof setTimeout> | undefined;

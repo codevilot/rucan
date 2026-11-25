@@ -5,13 +5,7 @@ import type { Geometry, ScreenModel } from "./screen.js";
 import { workspaceSidebar } from "./sidebar-actions.js";
 import type { TerminalSnapshot } from "./snapshot.js";
 import type { TmuxTarget } from "./tmux.js";
-import {
-  exitLines,
-  footerFor,
-  menuFor,
-  selectionLines,
-  type Mode,
-} from "./view.js";
+import { exitLines, footerFor, selectionLines, type Mode } from "./view.js";
 import { workspaceLabels, type NativeWorkspace } from "./workspaces.js";
 
 interface WorkspaceScreenState {
@@ -35,8 +29,6 @@ interface WorkspaceScreenState {
   tmuxIndex: number;
   name: string;
   offset: number;
-  command: string;
-  commandError: boolean;
   sshTarget: string;
   paletteLines: readonly string[] | undefined;
 }
@@ -46,12 +38,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
   const title = selected
     ? `${selected.name}${selected.persistent ? " ◆" : ""}`
     : "No session";
-  const footer = footerFor(
-    state.mode,
-    state.config.terminal.prefix_key,
-    state.name,
-    state.offset,
-  );
+  const footer = footerFor(state.mode, state.name, state.offset);
   const explorer = state.mode === "explorer" ? state.explorer : undefined;
   if (state.mode === "update" && state.update) {
     return {
@@ -111,7 +98,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
     },
     footer:
       state.update && state.mode !== "exit"
-        ? `${footer} · U Review v${state.update}`
+        ? `${footer} · Update v${state.update}`
         : footer,
     sidebarLines:
       selection ??
@@ -124,39 +111,25 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       ? { contentLines: selection }
       : explorer
         ? { contentLines: explorer.content }
-        : state.mode === "menu"
-          ? { contentLines: menuFor(state.update, state.layout.sidebar > 0) }
-          : state.mode === "exit"
-            ? { contentLines: exitLines(state.host) }
-            : state.mode === "command"
-              ? {
-                  contentLines: [
-                    `Command  /${state.command}▏`,
-                    "",
-                    state.commandError
-                      ? "Unknown command. Try /exit."
-                      : "/exit  Quit Rucan",
-                  ],
-                }
-              : state.mode === "ssh"
-                ? {
-                    contentLines: [
-                      "SSH connect",
-                      `Host  ${state.sshTarget}▏`,
-                      "Enter an IP, SSH alias, or user@host.",
-                    ],
-                  }
-                : state.mode === "palette" && state.paletteLines
-                  ? { paletteLines: state.paletteLines }
-                  : {}),
+        : state.mode === "exit"
+          ? { contentLines: exitLines(state.host) }
+          : state.mode === "ssh"
+            ? {
+                contentLines: [
+                  "SSH connect",
+                  `Host  ${state.sshTarget}▏`,
+                  "Enter an IP, SSH alias, or user@host.",
+                ],
+              }
+            : state.mode === "palette" && state.paletteLines
+              ? { paletteLines: state.paletteLines }
+              : {}),
     snapshot:
       (selection && state.layout.sidebar === 0) ||
       explorer ||
-      state.mode === "menu" ||
       state.mode === "palette" ||
       state.mode === "ssh" ||
-      state.mode === "exit" ||
-      state.mode === "command"
+      state.mode === "exit"
         ? undefined
         : state.mode === "history"
           ? state.history

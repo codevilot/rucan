@@ -26,6 +26,14 @@ def read_until(master, marker, seconds=8):
     return data
 
 
+def choose_action(master, query):
+    os.write(master, b"\x1b[24~")
+    read_until(master, b"Rucan commands")
+    os.write(master, query.encode())
+    read_until(master, f"{query}▏".encode())
+    os.write(master, b"\r")
+
+
 def run():
     with tempfile.TemporaryDirectory(prefix="rucan-e2e-") as sandbox:
         path = Path(sandbox)
@@ -83,7 +91,7 @@ def exercise(node, env):
     original = termios.tcgetattr(slave)
     process = subprocess.Popen(node, env=env, stdin=slave, stdout=slave, stderr=slave)
     try:
-        frame = read_until(master, b"ctrl+g Menu")
+        frame = read_until(master, b"F12 Palette")
         assert name + b" v" + number in frame
         assert frame.count(b"v" + number) == 2
         assert b"+ New workspace" in frame
@@ -101,18 +109,16 @@ def exercise(node, env):
         os.write(master, (nested + "\r").encode())
         read_until(master, b"Rucan session commands")
 
-        os.write(master, b"\x07")
-        read_until(master, b"U Check for updates")
-        os.write(master, b"e")
-        data = read_until(master, b"Esc Menu")
+        choose_action(master, "Browse files")
+        data = read_until(master, b"Esc Palette")
         if b"README.md" not in data:
             read_until(master, b"README.md")
         os.write(master, b"\r")
         read_until(master, b"RUCAN-FILE-PREVIEW")
         os.write(master, b"\x1b")
-        read_until(master, b"P Pin")
-        os.write(master, b"\x07")
-        read_until(master, b"ctrl+g Menu")
+        read_until(master, b"Rucan commands")
+        os.write(master, b"\x1b")
+        read_until(master, b"F12 Palette")
 
         os.write(master, b"vim -Nu NONE -i NONE -n\r")
         read_until(master, b"VIM - Vi IMproved")
@@ -121,13 +127,9 @@ def exercise(node, env):
         os.write(master, b"\x1b:q!\r")
         time.sleep(0.15)
 
-        os.write(master, b"\x07")
-        read_until(master, b"P Pin")
-        os.write(master, b"p")
+        choose_action(master, "Pin workspace")
         read_until(master, "›1 ◆ tty-test".encode())
-        os.write(master, b"/")
-        read_until(master, b"Command  /")
-        os.write(master, b"exit\r")
+        choose_action(master, "exit")
         read_until(master, b"Close UI and keep all sessions")
         os.write(master, b"\r")
         read_until(master, b"\x1b[?1049l")
@@ -158,23 +160,16 @@ def exercise_sidebar(master):
 
     drag(25, 40)
     expect_width(60)
-    for before, after, width in (
-        (b"B Hide sidebar", b"B Show sidebar", 100),
-        (b"B Show sidebar", b"B Hide sidebar", 60),
-    ):
-        os.write(master, b"\x07")
-        read_until(master, before)
-        os.write(master, b"b")
-        read_until(master, after)
-        os.write(master, b"\x1b")
-        read_until(master, b"ctrl+g Menu")
+    for action, width in (("Hide sidebar", 100), ("Show sidebar", 60)):
+        choose_action(master, action)
+        read_until(master, b"F12 Palette")
         expect_width(width)
     drag(40, 25)
     expect_width(75)
 
 
 def exercise_session_exit(node, env):
-    palette_hint = b"Option+Space Search" if sys.platform == "darwin" else b"Alt+Space Search"
+    palette_hint = b"Option+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
     def new(name):
         session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
         subprocess.check_output(node + ["rename", session["id"], name], env=env)
@@ -189,9 +184,13 @@ def exercise_session_exit(node, env):
         node + ["attach", first], env=env, stdin=slave, stdout=slave, stderr=slave
     )
     try:
-        frame = read_until(master, b"ctrl+g Menu")
+        frame = read_until(master, b"F12 Palette")
         assert "›1 ◇ first-shell".encode() in frame
         assert " 3 ◇ next-shell".encode() in frame
+        choose_action(master, "next-shell")
+        read_until(master, "›3 ◇ next-shell".encode())
+        choose_action(master, "1")
+        read_until(master, "›1 ◇ first-shell".encode())
         subprocess.check_call(node + ["kill", background], env=env)
         read_until(master, " 2 ◇ next-shell".encode())
         os.write(master, b"exit\r")
@@ -213,7 +212,7 @@ def exercise_session_exit(node, env):
         assert "›  SSH connect".encode() in frame
         os.write(master, b"\x1b")
         read_until(master, palette_hint)
-        os.write(master, b"\x1b[24~ ")
+        os.write(master, b"\x1b[24~")
         read_until(master, b"Rucan commands")
         os.write(master, b"\x1b")
         read_until(master, palette_hint)
@@ -223,9 +222,7 @@ def exercise_session_exit(node, env):
         read_until(master, b"Host  ops@192.0.2.7")
         os.write(master, b"\r")
         read_until(master, b"SSH-ARGV-ok")
-        os.write(master, b"\x07")
-        read_until(master, b"P Pin")
-        os.write(master, b"d")
+        choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
     finally:

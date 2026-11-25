@@ -1,10 +1,8 @@
 export type Mode =
   | "terminal"
-  | "menu"
   | "palette"
   | "ssh"
   | "exit"
-  | "command"
   | "explorer"
   | "tmux"
   | "update"
@@ -18,62 +16,33 @@ const paletteShortcut =
 
 export function footerFor(
   mode: Mode,
-  prefix: string,
   name: string,
   scrollback: number,
 ): string {
   switch (mode) {
     case "create":
-      return "Esc Menu · ↑↓ Choose workspace · Enter Open";
+      return "Esc Palette · ↑↓ Choose workspace · Enter Open";
     case "hosts":
-      return "Esc Menu · ↑↓ Select host · Enter Connect";
+      return "Esc Palette · ↑↓ Select host · Enter Connect";
     case "rename":
-      return `Esc Menu · Enter Save · Name ${name}`;
+      return `Esc Palette · Enter Save · Name ${name}`;
     case "history":
-      return `Esc Menu · ↑↓ Scroll · History ${scrollback} lines back`;
+      return `Esc Palette · ↑↓ Scroll · History ${scrollback} lines back`;
     case "update":
       return "Esc Continue · 1 Update · 2 Continue · 3 Skip version";
     case "tmux":
-      return "Esc Menu · ↑↓ Select · Enter Attach · N New tmux session";
+      return "Esc Palette · ↑↓ Select · Enter Attach · N New tmux session";
     case "explorer":
-      return "Esc Menu · ↑↓ Select · Enter Expand/Preview · R Refresh · O Editor";
-    case "command":
-      return "Esc Menu · Enter Run command";
+      return "Esc Palette · ↑↓ Select · Enter Expand/Preview · R Refresh · O Editor";
     case "exit":
-      return "Esc Menu · Enter Keep all";
-    case "menu":
-      return "Esc Terminal · Q Quit · ↑↓ / 1–9 Switch";
+      return "Esc Palette · Enter Keep all";
     case "palette":
       return "Esc Terminal · ↑↓ Select · Enter Run";
     case "ssh":
-      return "Esc Menu · Enter Connect";
+      return "Esc Palette · Enter Connect";
     case "terminal":
-      return `${prefix} Menu (F12) · ${paletteShortcut} Search · exit Close shell`;
+      return `F12 Palette · ${paletteShortcut} Palette · exit Close shell`;
   }
-}
-
-export function menuFor(
-  update: string | undefined,
-  sidebarVisible: boolean,
-): string[] {
-  return [
-    "Workspace actions",
-    "Space Search actions",
-    "",
-    "/exit or Q  Quit Rucan",
-    "D Close UI and keep sessions",
-    "",
-    "N New workspace",
-    "C SSH connect",
-    "P Pin",
-    "H Hosts",
-    "E Files",
-    "T Tmux",
-    "S History",
-    "R Rename",
-    sidebarVisible ? "B Hide sidebar" : "B Show sidebar",
-    update ? `U Update to v${update}` : "U Check for updates",
-  ];
 }
 
 export function selectionLines(

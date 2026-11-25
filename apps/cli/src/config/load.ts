@@ -19,7 +19,6 @@ defaults:
   on_disconnect: preserve
 terminal:
   scrollback_lines: 10000
-  prefix_key: ctrl+g
 updates:
   check_on_startup: true
   channel: stable
