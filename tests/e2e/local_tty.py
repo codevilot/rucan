@@ -64,7 +64,7 @@ def exercise(node, env):
     original = termios.tcgetattr(slave)
     process = subprocess.Popen(node, env=env, stdin=slave, stdout=slave, stderr=slave)
     try:
-        read_until(master, b"Local agent connected")
+        read_until(master, b"ctrl+g Menu")
         os.write(master, b"printf 'PTY-%s\\n' smoke\r")
         read_until(master, b"PTY-smoke")
 
@@ -90,7 +90,11 @@ def exercise(node, env):
         read_until(master, b"P Pin")
         os.write(master, b"p")
         read_until(master, "◆".encode())
-        os.write(master, b"d")
+        os.write(master, b"/")
+        read_until(master, b"Command  /")
+        os.write(master, b"exit\r")
+        read_until(master, b"Close UI and keep all sessions")
+        os.write(master, b"\r")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
         assert termios.tcgetattr(slave) == original

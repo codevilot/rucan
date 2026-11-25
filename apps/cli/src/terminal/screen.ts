@@ -2,6 +2,12 @@ import stringWidth from "string-width";
 import type { Style, TerminalSnapshot } from "./snapshot.js";
 
 const reset = "\x1b[0m";
+const chrome = "\x1b[1;36m";
+const brand = "\x1b[1;30;106m";
+const activeTab = "\x1b[1;97;44m";
+const connected = "\x1b[32m";
+const attention = "\x1b[33m";
+const divider = "\x1b[2m";
 const hideCursor = "\x1b[?25l";
 const move = (row: number, col: number): string => `\x1b[${row};${col}H`;
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -57,12 +63,42 @@ function sgr([flags, fg, bg]: Style): string {
 
 export interface ScreenModel {
   layout: Geometry;
-  header: string;
+  header:
+    | string
+    | {
+        tab: string;
+        status: string;
+        healthy: boolean;
+      };
   footer: string;
   sidebarLines: readonly string[];
   contentLines?: readonly string[];
   snapshot: TerminalSnapshot | undefined;
   showCursor: boolean;
+}
+
+function renderHeader(header: ScreenModel["header"], width: number): string {
+  if (typeof header === "string") return chrome + fit(header, width) + reset;
+  const logo = fit(" rucan ", width);
+  const remaining = width - stringWidth(logo);
+  if (remaining < 3) return brand + logo + reset;
+  const tab = fit(
+    ` ${header.tab} `,
+    Math.min(remaining - 1, Math.max(12, Math.floor(width * 0.45))),
+  );
+  const status = fit(`  ● ${header.status}`, remaining - stringWidth(tab) - 1);
+  return (
+    brand +
+    logo +
+    reset +
+    " " +
+    activeTab +
+    tab +
+    reset +
+    (header.healthy ? connected : attention) +
+    status +
+    reset
+  );
 }
 
 /** Own every write to the outer terminal while the interactive UI is mounted. */
@@ -104,7 +140,7 @@ export class Screen {
       showCursor,
       contentLines,
     } = model;
-    const lines = [fit(header, layout.cols)];
+    const lines = [renderHeader(header, layout.cols)];
     for (let row = 0; row < layout.rows - 2; row++) {
       const sidebar = fit(
         sidebarLines[row] ?? "",
@@ -112,12 +148,20 @@ export class Screen {
       );
       let line =
         layout.sidebar > 0
-          ? sidebar +
+          ? (row === 0 || sidebar.startsWith("›")
+              ? chrome + sidebar + reset
+              : sidebar) +
             " ".repeat(Math.max(0, layout.sidebar - 1 - stringWidth(sidebar))) +
-            "│"
+            divider +
+            "│" +
+            reset
           : "";
       let col = layout.sidebar;
-      if (contentLines) line += fit(contentLines[row] ?? "", layout.cols - col);
+      if (contentLines && layout.cols - col > 2) {
+        const content = fit(contentLines[row] ?? "", layout.cols - col - 2);
+        if (content)
+          line += "  " + (row === 0 ? chrome : reset) + content + reset;
+      }
       for (const [width, text, style] of snapshot?.grid.lines[row] ?? []) {
         if (col >= layout.cols) break;
         line +=
@@ -128,7 +172,7 @@ export class Screen {
       }
       lines.push(line + reset);
     }
-    lines.push(fit(footer, layout.cols));
+    lines.push(chrome + fit(footer, layout.cols) + reset);
 
     let output = hideCursor;
     const last = Math.max(lines.length, this.#previous.length);

@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-Use Ctrl+G to open the menu. P pins, D detaches, H selects a host, E opens the file explorer, and Q opens exit options. Arrow keys, digits and sidebar clicks switch workspaces. T opens optional tmux actions, and S browses scrollback. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`. Local and remote configuration examples follow.
+To close Rucan and keep your sessions running, press Ctrl+G, type `/exit` and press Enter, then press Enter again in the exit screen. You can also use Q in the menu to open the exit screen. Ctrl+G opens the workspace menu. P pins a session, D closes the UI and keeps sessions running, H selects a host, and E opens the file explorer. Arrow keys, digits and sidebar clicks switch workspaces. T opens optional tmux actions, and S browses scrollback. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`. Local and remote configuration examples follow.
 
 ```yaml
 version: 1

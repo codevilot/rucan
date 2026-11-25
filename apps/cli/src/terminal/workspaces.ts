@@ -106,7 +106,6 @@ export function workspaceLabels(
   config: Config,
   sessions: readonly NativeWorkspace[],
   activeId: string | undefined,
-  actions?: string[],
 ): string[] {
   const labels = [
     "WORKSPACES",
@@ -124,7 +123,5 @@ export function workspaceLabels(
     else if (workspace.backend === "tmux")
       labels.push(`  ○ ${workspace.name} (tmux)`);
   }
-  return actions
-    ? [...labels, "", ...actions]
-    : [...labels, "", "EXPLORER", "E in menu to browse"];
+  return labels;
 }
