@@ -1,9 +1,6 @@
 import { posix } from "node:path";
-import {
-  availableUpdate,
-  installUpdate,
-  skipUpdate,
-} from "../release/updates.js";
+import { availableUpdate, skipUpdate } from "../release/updates.js";
+import { restartAfterUpdate } from "../release/restart.js";
 import { Explorer } from "../explorer/explorer.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
@@ -32,7 +29,7 @@ import {
 } from "./workspaces.js";
 
 type WorkspaceResult =
-  | { type: "update"; version: string }
+  | { type: "update"; version: string; session: string | undefined }
   | { type: "host"; host: string | undefined; client: SessionClient };
 
 type ExitPolicy = Exclude<Config["defaults"]["on_exit"], "ask">;
@@ -61,7 +58,8 @@ export async function runInteractive(
       client.close();
     }
     target = undefined;
-    if (next?.type === "update") await installUpdate(next.version);
+    if (next?.type === "update")
+      await restartAfterUpdate(next.version, alias, next.session);
     if (next?.type === "host") {
       currentHost = next.host;
       prepared = next.client;
@@ -143,7 +141,10 @@ class InteractiveWorkspace {
       ? this.#workspaces.find(
           ({ id, name }) => id === requested || name === requested,
         )
-      : this.#workspaces.find(({ running }) => running);
+      : (this.#workspaces.find(
+          ({ id }) => id === process.env.RUCAN_RESUME_SESSION,
+        ) ?? this.#workspaces[0]);
+    delete process.env.RUCAN_RESUME_SESSION;
     if (requested && !target) throw new Error(`Unknown session ${requested}`);
 
     const onResize = (): void => {
@@ -477,7 +478,11 @@ class InteractiveWorkspace {
     } else if (this.#mode === "update") {
       if (key === "1") {
         if (this.#update) {
-          this.#result = { type: "update", version: this.#update };
+          this.#result = {
+            type: "update",
+            version: this.#update,
+            session: this.#selected?.id,
+          };
           this.#stop();
         }
       } else if (key === "2" || key === "\x1b" || key === "3") {
@@ -636,8 +641,8 @@ class InteractiveWorkspace {
     } else if (key === "s" && this.#selected) {
       await this.#scroll(this.#layout.terminalRows);
       this.#mode = "history";
-    } else if (key === "u" && this.#update) {
-      this.#mode = "update";
+    } else if (key === "u") {
+      await this.#checkForUpdate();
     } else if (key === "t") {
       const inventory = await listTmux(this.#client);
       if (!inventory.available)
@@ -690,6 +695,17 @@ class InteractiveWorkspace {
   #openPalette(): void {
     this.#palette = new CommandPalette(Boolean(this.#selected), this.#update);
     this.#mode = "palette";
+  }
+
+  async #checkForUpdate(): Promise<void> {
+    if (!this.#update) {
+      this.#status = "Checking for updates…";
+      this.#draw();
+      this.#update = await availableUpdate(true);
+    }
+    if (this.#stopped) return;
+    this.#status = this.#update ? "" : "No newer stable release found";
+    if (this.#update) this.#mode = "update";
   }
 
   async #readSshTarget(key: string): Promise<void> {

@@ -65,7 +65,7 @@ export function menuFor(update?: string): string[] {
     "T Tmux",
     "S History",
     "R Rename",
-    ...(update ? [`U Update to v${update}`] : []),
+    update ? `U Update to v${update}` : "U Check for updates",
   ];
 }
 

@@ -100,7 +100,7 @@ def exercise(node, env):
         read_until(master, b"Rucan session commands")
 
         os.write(master, b"\x07")
-        read_until(master, b"P Pin")
+        read_until(master, b"U Check for updates")
         os.write(master, b"e")
         data = read_until(master, b"Esc Menu")
         if b"README.md" not in data:

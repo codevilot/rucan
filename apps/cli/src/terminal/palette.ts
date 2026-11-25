@@ -27,9 +27,15 @@ export class CommandPalette {
   ) {}
 
   #matches(): PaletteAction[] {
-    const available = this.update
-      ? [...actions, { key: "u", label: `Review update to v${this.update}` }]
-      : actions;
+    const available = [
+      ...actions,
+      {
+        key: "u",
+        label: this.update
+          ? `Review update to v${this.update}`
+          : "Check for updates",
+      },
+    ];
     const terms = this.#query.trim().toLowerCase().split(/\s+/u);
     return available.filter(
       ({ label, requiresSession }) =>
