@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-Type `exit` at the shell prompt to close the current shell. Open the command palette with F12, Option+Space on macOS, or Alt+Space on Linux. On Mac keyboards with media keys, press Fn+F12. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to choose an exit policy. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
+Type `exit` at the shell prompt to close the current shell. Open the command palette with Option+Space on macOS or Alt+Space on Linux. You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to choose an exit policy. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
 
 ```yaml
 version: 1

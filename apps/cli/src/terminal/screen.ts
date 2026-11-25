@@ -10,6 +10,8 @@ import {
 } from "./chrome.js";
 import type { Style, TerminalSnapshot } from "./snapshot.js";
 import { sidebarWidth } from "./sidebar-layout.js";
+import { paletteBounds } from "./palette-layout.js";
+import type { Writable } from "node:stream";
 
 const hideCursor = "\x1b[?25l";
 const move = (row: number, col: number): string => `\x1b[${row};${col}H`;
@@ -67,20 +69,21 @@ export interface ScreenModel {
 
 /** Own every write to the outer terminal while the interactive UI is mounted. */
 export class Screen {
-  #output: NodeJS.WriteStream;
+  #output: Writable;
   #previous: string[] = [];
   #paintedLayout: Geometry | undefined;
   #latest: ScreenModel | undefined;
+  #painted: ScreenModel | undefined;
   #blocked = false;
   #keyModes = "";
   #mouseMode = "";
 
-  constructor(output: NodeJS.WriteStream) {
+  constructor(output: Writable) {
     this.#output = output;
   }
 
   enter(): void {
-    this.#output.write("\x1b[?1049h\x1b[2J\x1b[?2004h" + hideCursor);
+    this.#output.write("\x1b[?1049h\x1b[?7l\x1b[2J\x1b[?2004h" + hideCursor);
   }
 
   draw(model: ScreenModel): void {
@@ -88,9 +91,25 @@ export class Screen {
     if (!this.#blocked) this.#flush();
   }
 
+  paletteLineAt(row: number, col: number): number | undefined {
+    const painted = this.#painted;
+    if (this.#blocked || painted !== this.#latest || !painted?.paletteLines)
+      return undefined;
+    const { top, left, width } = paletteBounds(painted.layout);
+    const line = row - top;
+    return width >= 4 &&
+      col >= left &&
+      col < left + width &&
+      row < painted.layout.rows &&
+      line >= 0 &&
+      line < painted.paletteLines.length
+      ? line
+      : undefined;
+  }
+
   #onDrain = (): void => {
     this.#blocked = false;
-    this.#flush();
+    if (this.#latest !== this.#painted) this.#flush();
   };
 
   #flush(): void {
@@ -107,10 +126,7 @@ export class Screen {
       paletteLines,
     } = model;
     const lines = [renderHeader(header, layout.cols)];
-    const paletteTop = Math.max(
-      0,
-      Math.floor((layout.rows - 2 - (paletteLines?.length ?? 0)) / 3),
-    );
+    const paletteTop = paletteBounds(layout).top - 2;
     for (let row = 0; row < layout.rows - 2; row++) {
       let line = renderSidebar(
         sidebarLines[row] ?? "",
@@ -180,6 +196,7 @@ export class Screen {
       this.#mouseMode = mouse;
     }
     this.#previous = lines;
+    this.#painted = model;
     if (
       snapshot &&
       showCursor &&
@@ -201,7 +218,7 @@ export class Screen {
     this.#output.off("drain", this.#onDrain);
     this.#output.write(
       reset +
-        "\x1b[?1l\x1b>\x1b[?2004l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h",
+        "\x1b[?1l\x1b>\x1b[?2004l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?7h\x1b[?1049l\x1b[?25h",
     );
   }
 }

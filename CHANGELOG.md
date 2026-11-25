@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7
+
+- Kept the command palette in a fixed position while filtering results.
+- Made the footer and visible palette results clickable and guarded against stale clicks.
+- Passed F12 through to the terminal application.
+
 ## 0.1.6
 
 - Combined workspace actions and session switching in one command palette.

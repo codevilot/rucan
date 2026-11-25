@@ -26,8 +26,11 @@ def read_until(master, marker, seconds=8):
     return data
 
 
+PALETTE_HINT = b"Option+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
+
+
 def choose_action(master, query):
-    os.write(master, b"\x1b[24~")
+    os.write(master, b"\x1b ")
     read_until(master, b"Rucan commands")
     os.write(master, query.encode())
     read_until(master, f"{query}▏".encode())
@@ -91,7 +94,7 @@ def exercise(node, env):
     original = termios.tcgetattr(slave)
     process = subprocess.Popen(node, env=env, stdin=slave, stdout=slave, stderr=slave)
     try:
-        frame = read_until(master, b"F12 Palette")
+        frame = read_until(master, PALETTE_HINT)
         assert name + b" v" + number in frame
         assert frame.count(b"v" + number) == 2
         assert b"+ New workspace" in frame
@@ -118,7 +121,7 @@ def exercise(node, env):
         os.write(master, b"\x1b")
         read_until(master, b"Rucan commands")
         os.write(master, b"\x1b")
-        read_until(master, b"F12 Palette")
+        read_until(master, PALETTE_HINT)
 
         os.write(master, b"vim -Nu NONE -i NONE -n\r")
         read_until(master, b"VIM - Vi IMproved")
@@ -162,14 +165,13 @@ def exercise_sidebar(master):
     expect_width(60)
     for action, width in (("Hide sidebar", 100), ("Show sidebar", 60)):
         choose_action(master, action)
-        read_until(master, b"F12 Palette")
+        read_until(master, PALETTE_HINT)
         expect_width(width)
     drag(40, 25)
     expect_width(75)
 
 
 def exercise_session_exit(node, env):
-    palette_hint = b"Option+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
     def new(name):
         session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
         subprocess.check_output(node + ["rename", session["id"], name], env=env)
@@ -184,7 +186,7 @@ def exercise_session_exit(node, env):
         node + ["attach", first], env=env, stdin=slave, stdout=slave, stderr=slave
     )
     try:
-        frame = read_until(master, b"F12 Palette")
+        frame = read_until(master, PALETTE_HINT)
         assert "›1 ◇ first-shell".encode() in frame
         assert " 3 ◇ next-shell".encode() in frame
         choose_action(master, "next-shell")
@@ -211,11 +213,18 @@ def exercise_session_exit(node, env):
         frame = read_until(master, "ssh▏".encode())
         assert "›  SSH connect".encode() in frame
         os.write(master, b"\x1b")
-        read_until(master, palette_hint)
-        os.write(master, b"\x1b[24~")
+        read_until(master, PALETTE_HINT)
+        os.write(master, b"\x1b[<0;3;24M")
+        read_until(master, b"Rucan commands")
+        os.write(master, b"\x1b[<0;3;23M\x1b[<0;3;23m")
+        os.write(master, b"ssh")
+        read_until(master, "ssh▏".encode())
+        os.write(master, b"\x1b[<0;45;8M\x1b[<0;45;8m")
+        read_until(master, b"Enter Connect")
+        os.write(master, b"\x1b")
         read_until(master, b"Rucan commands")
         os.write(master, b"\x1b")
-        read_until(master, palette_hint)
+        read_until(master, PALETTE_HINT)
         os.write(master, b"\x1b[<0;3;23M")
         read_until(master, b"Enter Connect")
         os.write(master, b"ops@192.0.2.7")

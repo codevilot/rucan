@@ -9,11 +9,11 @@ import type { Config, WorkspaceConfig } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
-import { CommandPalette } from "./palette.js";
+import { CommandPalette, type PaletteAction } from "./palette.js";
 import { sidebarActionAt } from "./sidebar-actions.js";
 import { SidebarLayout } from "./sidebar-layout.js";
 import { openSshShell } from "./ssh-shell.js";
-import type { Mode } from "./view.js";
+import { paletteShortcut, type Mode } from "./view.js";
 import { workspaceScreen } from "./workspace-screen.js";
 import { listTmux, openTmux, type TmuxTarget } from "./tmux.js";
 import { TerminalWatch } from "./watch.js";
@@ -373,7 +373,28 @@ class InteractiveWorkspace {
       return;
     }
     if (event.type === "mouse") {
-      if (this.#mode !== "terminal" && this.#mode !== "palette") return;
+      if (this.#mode === "palette") {
+        if (event.release && event.button === 0) {
+          const line = this.#screen.paletteLineAt(event.row, event.col);
+          if (line !== undefined)
+            await this.#runPaletteAction(
+              this.#palette?.actionAt(line, this.#layout.rows - 2),
+            );
+          this.#draw();
+        }
+        return;
+      }
+      if (this.#mode !== "terminal") return;
+      if (
+        event.row === this.#layout.rows &&
+        event.col <= paletteShortcut.length + 10 &&
+        !event.release &&
+        event.button === 0
+      ) {
+        this.#openPalette();
+        this.#draw();
+        return;
+      }
       const drag = this.#sidebar.mouse(
         event,
         this.#layout.sidebar,
@@ -405,7 +426,7 @@ class InteractiveWorkspace {
           this.#mode = "terminal";
           await this.#select(workspace);
         }
-      } else if (this.#mode === "terminal" && this.#snapshot) {
+      } else if (this.#snapshot) {
         const bytes = terminalMouse(event, this.#layout, this.#snapshot.grid);
         if (bytes) await this.#forward(bytes);
       }
@@ -426,18 +447,7 @@ class InteractiveWorkspace {
     const key = event.bytes.toString("utf8");
     if (this.#mode === "palette") {
       if (key === "\x1b") this.#mode = "terminal";
-      else {
-        const action = this.#palette?.input(key);
-        if (action?.kind === "workspace") {
-          const workspace = this.#workspaces.find(({ id }) => id === action.id);
-          if (workspace) {
-            await this.#select(workspace);
-            this.#mode = "terminal";
-          }
-        } else if (action?.kind === "command") {
-          await this.#runAction(action.key);
-        }
-      }
+      else await this.#runPaletteAction(this.#palette?.input(key));
     } else if (this.#mode === "ssh") {
       await this.#readSshTarget(key);
     } else if (this.#mode === "explorer") {
@@ -688,6 +698,18 @@ class InteractiveWorkspace {
     } else if (key === "p" && this.#selected) {
       await this.#pin(this.#selected);
       this.#mode = "terminal";
+    }
+  }
+
+  async #runPaletteAction(action: PaletteAction | undefined): Promise<void> {
+    if (action?.kind === "workspace") {
+      const workspace = this.#workspaces.find(({ id }) => id === action.id);
+      if (workspace) {
+        this.#mode = "terminal";
+        await this.#select(workspace);
+      }
+    } else if (action?.kind === "command") {
+      await this.#runAction(action.key);
     }
   }
 

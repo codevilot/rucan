@@ -11,7 +11,7 @@ export type Mode =
   | "hosts"
   | "create";
 
-const paletteShortcut =
+export const paletteShortcut =
   process.platform === "darwin" ? "Option+Space" : "Alt+Space";
 
 export function footerFor(
@@ -41,7 +41,7 @@ export function footerFor(
     case "ssh":
       return "Esc Palette · Enter Connect";
     case "terminal":
-      return `F12 Palette · ${paletteShortcut} Palette · exit Close shell`;
+      return `${paletteShortcut} Palette · exit Close shell`;
   }
 }
 
