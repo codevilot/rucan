@@ -9,13 +9,13 @@ import {
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-const repo = "codevilot/ssui";
+const repo = "codevilot/ssux";
 const workflow = "release-candidate.yml";
 const registry = "https://registry.npmjs.org/";
 const { version } = JSON.parse(
   readFileSync(new URL("../apps/cli/package.json", import.meta.url), "utf8"),
 );
-const filename = `ssui-${version}.tgz`;
+const filename = `ssux-${version}.tgz`;
 
 function read(command, args) {
   return execFileSync(command, args, { encoding: "utf8" }).trim();
@@ -111,7 +111,7 @@ async function prepare(commit, destination) {
       "--repo",
       repo,
       "--name",
-      "ssui-release-candidate",
+      "ssux-release-candidate",
       "--dir",
       temporary,
     ]);
@@ -159,7 +159,7 @@ try {
   }
 } catch (error) {
   console.error(
-    `SSUI release: ${error instanceof Error ? error.message : String(error)}`,
+    `SSUX release: ${error instanceof Error ? error.message : String(error)}`,
   );
   process.exitCode = 1;
 }

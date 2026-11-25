@@ -9,23 +9,23 @@ async fn main() -> ExitCode {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     match args.as_slice() {
         [flag] if flag == "--version" => {
-            println!("ssui-agent {}", env!("CARGO_PKG_VERSION"));
+            println!("ssux-agent {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         [action, command, tail @ ..] if action == "ctl" => {
             let Some(command) = command.to_str() else {
-                eprintln!("ssui-agent ctl: expected a UTF-8 command");
+                eprintln!("ssux-agent ctl: expected a UTF-8 command");
                 return ExitCode::FAILURE;
             };
-            let path = std::env::var_os("SSUI_AGENT_SOCKET").map_or_else(
-                || PathBuf::from(format!("/tmp/ssui-{}/agent.sock", nix::unistd::geteuid())),
+            let path = std::env::var_os("SSUX_AGENT_SOCKET").map_or_else(
+                || PathBuf::from(format!("/tmp/ssux-{}/agent.sock", nix::unistd::geteuid())),
                 PathBuf::from,
             );
             let session = tail
                 .first()
                 .and_then(|value| value.to_str())
                 .map(str::to_owned)
-                .or_else(|| std::env::var("SSUI_SESSION_ID").ok());
+                .or_else(|| std::env::var("SSUX_SESSION_ID").ok());
             let operation = match (command, tail.len(), session) {
                 ("ls", 0, _) => json!({"type": "list"}),
                 ("pin" | "unpin", 0 | 1, Some(session)) => {
@@ -37,18 +37,18 @@ async fn main() -> ExitCode {
                 }
                 _ => {
                     eprintln!(
-                        "Usage: ssui-agent ctl ls | pin [session] | unpin [session] | kill [session]"
+                        "Usage: ssux-agent ctl ls | pin [session] | unpin [session] | kill [session]"
                     );
                     return ExitCode::FAILURE;
                 }
             };
-            match ssui_agent::client::control(&path, operation).await {
+            match ssux_agent::client::control(&path, operation).await {
                 Ok(reply) => {
                     println!("{reply}");
                     ExitCode::SUCCESS
                 }
                 Err(error) => {
-                    eprintln!("ssui-agent ctl: {error}");
+                    eprintln!("ssux-agent ctl: {error}");
                     ExitCode::FAILURE
                 }
             }
@@ -56,20 +56,20 @@ async fn main() -> ExitCode {
         [action, flag, path]
             if (action == "bridge" || action == "connect") && flag == "--socket" =>
         {
-            match ssui_agent::bridge::bridge(Path::new(path), action == "connect") {
+            match ssux_agent::bridge::bridge(Path::new(path), action == "connect") {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(error) => {
-                    eprintln!("ssui-agent bridge: {error}");
+                    eprintln!("ssux-agent bridge: {error}");
                     ExitCode::FAILURE
                 }
             }
         }
         [action, flag, path] if action == "start" && flag == "--socket" => {
-            let result = ssui_agent::bridge::start_daemon(Path::new(path));
+            let result = ssux_agent::bridge::start_daemon(Path::new(path));
             match result {
                 Ok(_) => ExitCode::SUCCESS,
                 Err(error) => {
-                    eprintln!("ssui-agent start: {error}");
+                    eprintln!("ssux-agent start: {error}");
                     ExitCode::FAILURE
                 }
             }
@@ -78,21 +78,21 @@ async fn main() -> ExitCode {
             if action == "daemon"
                 && let Err(error) = nix::unistd::setsid()
             {
-                eprintln!("ssui-agent detach: {error}");
+                eprintln!("ssux-agent detach: {error}");
                 return ExitCode::FAILURE;
             }
             nix::sys::stat::umask(nix::sys::stat::Mode::from_bits_truncate(0o077));
-            match ssui_agent::transport::serve(Path::new(path)).await {
+            match ssux_agent::transport::serve(Path::new(path)).await {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(error) => {
-                    eprintln!("ssui-agent: {error}");
+                    eprintln!("ssux-agent: {error}");
                     ExitCode::FAILURE
                 }
             }
         }
         _ => {
             eprintln!(
-                "Usage: ssui-agent [--version | (serve|start|bridge|connect) --socket <absolute path>]"
+                "Usage: ssux-agent [--version | (serve|start|bridge|connect) --socket <absolute path>]"
             );
             ExitCode::FAILURE
         }

@@ -1,5 +1,5 @@
 use portable_pty::{CommandBuilder, PtySize};
-use ssui_agent::session::{NativeSession, Persistence, ProcessState};
+use ssux_agent::session::{NativeSession, Persistence, ProcessState};
 use std::time::{Duration, Instant};
 
 async fn await_condition(mut condition: impl FnMut() -> bool) {

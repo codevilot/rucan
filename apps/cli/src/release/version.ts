@@ -20,7 +20,7 @@ function packageVersion(): string {
     const version = stableVersion(metadata.version);
     if (version) return version;
   }
-  throw new Error("Invalid ssui package version");
+  throw new Error("Invalid ssux package version");
 }
 
 export const version = packageVersion();

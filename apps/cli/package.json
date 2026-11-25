@@ -1,5 +1,5 @@
 {
-  "name": "ssui",
+  "name": "ssux",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "bin": {
-    "ssui": "./dist/main.js"
+    "ssux": "./dist/main.js"
   },
   "dependencies": {
     "ink": "7.0.3",
@@ -18,7 +18,7 @@
   "description": "Terminal-native local and SSH workspace manager with persistent sessions",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/codevilot/ssui.git",
+    "url": "git+https://github.com/codevilot/ssux.git",
     "directory": "apps/cli"
   },
   "files": [

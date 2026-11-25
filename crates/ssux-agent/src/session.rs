@@ -101,7 +101,7 @@ impl NativeSession {
 
         let output_state = Arc::clone(&state);
         thread::Builder::new()
-            .name("ssui-pty-read".into())
+            .name("ssux-pty-read".into())
             .spawn(move || {
                 let mut buffer = [0; 8192];
                 loop {
@@ -119,7 +119,7 @@ impl NativeSession {
             })?;
 
         thread::Builder::new()
-            .name("ssui-pty-write".into())
+            .name("ssux-pty-write".into())
             .spawn(move || {
                 while let Ok(bytes) = queued_input.recv() {
                     if writer.write_all(&bytes).is_err() {

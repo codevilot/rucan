@@ -28,7 +28,7 @@ function directory(): string {
     configured && isAbsolute(configured)
       ? configured
       : join(homedir(), ".cache"),
-    "ssui",
+    "ssux",
   );
 }
 
@@ -67,7 +67,7 @@ async function readCache(): Promise<Cache | undefined> {
 }
 
 async function fetchLatest(): Promise<string | undefined> {
-  const response = await fetch(`${registry}/ssui/latest`, {
+  const response = await fetch(`${registry}/ssux/latest`, {
     signal: AbortSignal.timeout(1800),
     headers: { accept: "application/json" },
   });
@@ -137,7 +137,7 @@ async function installMethod(): Promise<"npm" | "pnpm" | undefined> {
             timeout: 2000,
           },
         );
-        return (await realpath(join(stdout.trim(), "ssui"))) ===
+        return (await realpath(join(stdout.trim(), "ssux"))) ===
           packageDirectory
           ? manager
           : undefined;
@@ -162,7 +162,7 @@ export async function installUpdate(target: string): Promise<void> {
     "--global",
     "--ignore-scripts",
     `--registry=${registry}`,
-    `ssui@${target}`,
+    `ssux@${target}`,
   ];
   await new Promise<void>((resolve, reject) => {
     const child = spawn(method, args, { stdio: "inherit" });

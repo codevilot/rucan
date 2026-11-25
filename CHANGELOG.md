@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Renamed the project, CLI, npm package, and native agent to SSUX.
+
 - Added a strict YAML config loader and a labeled workspace fixture.
 - Added a native PTY probe and a reference terminal parser experiment.
 - Documented proposed protocol, session lifecycle and rendering boundaries.

@@ -14,10 +14,10 @@ export async function runDoctorCommand(
     args.length !== 1 &&
     (args.length !== 3 || args[1] !== "--host" || !args[2])
   ) {
-    throw new Error("Usage: ssui doctor [--host <alias>]");
+    throw new Error("Usage: ssux doctor [--host <alias>]");
   }
   const summary: Record<string, unknown> = {
-    ssui: version,
+    ssux: version,
     node: process.version,
     platform: `${process.platform}/${process.arch}`,
     config: configPath(),

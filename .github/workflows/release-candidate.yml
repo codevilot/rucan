@@ -23,21 +23,21 @@ jobs:
       - if: runner.os == 'Linux'
         run: |
           docker build -f tests/e2e/ssh.Dockerfile --target artifact --output type=local,dest=target/distribution .
-          file target/distribution/ssui-agent
-          target/distribution/ssui-agent --version
+          file target/distribution/ssux-agent
+          target/distribution/ssux-agent --version
       - if: runner.os == 'macOS'
         env:
           MACOSX_DEPLOYMENT_TARGET: "12.0"
         run: |
           rustup toolchain install stable --profile minimal
-          cargo +stable build --locked --release -p ssui-agent
+          cargo +stable build --locked --release -p ssux-agent
           mkdir -p target/distribution
-          cp target/release/ssui-agent target/distribution/
-          target/distribution/ssui-agent --version
+          cp target/release/ssux-agent target/distribution/
+          target/distribution/ssux-agent --version
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}
-          path: target/distribution/ssui-agent
+          path: target/distribution/ssux-agent
           if-no-files-found: error
   package:
     needs: agents
@@ -61,18 +61,18 @@ jobs:
       - run: node scripts/stage-package.mjs target/target-artifacts target/npm-staging
       - run: |
           npm pack ./target/npm-staging --pack-destination target
-          npm install --prefix target/package-smoke --ignore-scripts "$PWD"/target/ssui-*.tgz
-          target/package-smoke/node_modules/.bin/ssui --version
+          npm install --prefix target/package-smoke --ignore-scripts "$PWD"/target/ssux-*.tgz
+          target/package-smoke/node_modules/.bin/ssux --version
       - uses: actions/attest-build-provenance@v3
         with:
           subject-path: |
-            target/ssui-*.tgz
+            target/ssux-*.tgz
             target/npm-staging/agents/manifest.json
-            target/npm-staging/agents/*/ssui-agent
+            target/npm-staging/agents/*/ssux-agent
       - uses: actions/upload-artifact@v7
         with:
-          name: ssui-release-candidate
+          name: ssux-release-candidate
           path: |
-            target/ssui-*.tgz
+            target/ssux-*.tgz
             target/npm-staging/agents/
           if-no-files-found: error
