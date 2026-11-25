@@ -97,8 +97,7 @@ def exercise(node, env):
         frame = read_until(master, PALETTE_HINT)
         assert name + b" v" + number in frame
         assert frame.count(b"v" + number) == 2
-        assert b"+ New workspace" in frame
-        assert "↗ SSH connect".encode() in frame
+        assert "BG○ +".encode() in frame
         for rows, cols, terminal_cols in [(24, 40, 40), (24, 100, 75)]:
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             process.send_signal(signal.SIGWINCH)
@@ -130,8 +129,9 @@ def exercise(node, env):
         os.write(master, b"\x1b:q!\r")
         time.sleep(0.15)
 
-        choose_action(master, "Pin workspace")
-        read_until(master, "›1 ◆ tty-test".encode())
+        for label in ("›1 ◆ tty-test", "›1 ◇ tty-test", "›1 ◆ tty-test"):
+            os.write(master, b"\x1b[<0;20;2M")
+            read_until(master, label.encode())
         choose_action(master, "exit")
         read_until(master, b"Close UI and keep all sessions")
         os.write(master, b"\r")
@@ -201,9 +201,7 @@ def exercise_session_exit(node, env):
         read_until(master, b"NEXT-ready")
         os.write(master, b"exit\r")
         read_until(master, b"No active workspace")
-        os.write(master, b"\x1b[<0;3;22M")
-        read_until(master, b"Default shell")
-        os.write(master, b"\r")
+        os.write(master, b"\x1b[<0;24;2M")
         read_until(master, "›1 ◇ tty-test".encode())
         os.write(master, b"printf 'NEW-%s\\n' ready\r")
         read_until(master, b"NEW-ready")
@@ -216,21 +214,21 @@ def exercise_session_exit(node, env):
         read_until(master, PALETTE_HINT)
         os.write(master, b"\x1b[<0;3;24M")
         read_until(master, b"Rucan commands")
-        os.write(master, b"\x1b[<0;3;23M\x1b[<0;3;23m")
+        os.write(master, b"\x1b[<0;24;2M\x1b[<0;24;2m")
         os.write(master, b"ssh")
         read_until(master, "ssh▏".encode())
         os.write(master, b"\x1b[<0;45;8M\x1b[<0;45;8m")
-        read_until(master, b"Enter Connect")
-        os.write(master, b"\x1b")
-        read_until(master, b"Rucan commands")
-        os.write(master, b"\x1b")
-        read_until(master, PALETTE_HINT)
-        os.write(master, b"\x1b[<0;3;23M")
         read_until(master, b"Enter Connect")
         os.write(master, b"ops@192.0.2.7")
         read_until(master, b"Host  ops@192.0.2.7")
         os.write(master, b"\r")
         read_until(master, b"SSH-ARGV-ok")
+        os.write(master, b"\x1b[<0;24;2M")
+        frame = read_until(master, "›3 ◇ ops@192.0.2.7".encode())
+        if b"SSH-ARGV-ok" not in frame:
+            read_until(master, b"SSH-ARGV-ok")
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        assert sum(item.get("sshTarget") == "ops@192.0.2.7" for item in sessions) == 2
         choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0

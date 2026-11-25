@@ -8,8 +8,7 @@ export type Mode =
   | "update"
   | "history"
   | "rename"
-  | "hosts"
-  | "create";
+  | "hosts";
 
 export const paletteShortcut =
   process.platform === "darwin" ? "Option+Space" : "Alt+Space";
@@ -20,8 +19,6 @@ export function footerFor(
   scrollback: number,
 ): string {
   switch (mode) {
-    case "create":
-      return "Esc Palette · ↑↓ Choose workspace · Enter Open";
     case "hosts":
       return "Esc Palette · ↑↓ Select host · Enter Connect";
     case "rename":

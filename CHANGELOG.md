@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8
+
+- Added sidebar controls to open a session in the selected context and toggle background pinning.
+- Reused the SSH destination when opening a session from an interactive SSH tab.
+
 ## 0.1.7
 
 - Kept the command palette in a fixed position while filtering results.

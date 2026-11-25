@@ -1,6 +1,6 @@
 # Remote workspaces
 
-The **SSH connect** button opens an interactive OpenSSH tab. Enter an IP address, alias, or `user@host`. The agent for the current workspace host runs OpenSSH, so that host's SSH configuration and credentials apply. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive.
+The **SSH connect** action in the command palette opens an interactive OpenSSH tab. Enter an IP address, alias, or `user@host`. The agent for the current workspace host runs OpenSSH, so that host's SSH configuration and credentials apply. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive. With that tab selected, **+** opens another connection to the same destination.
 
 ## Agent-backed remote workspaces
 

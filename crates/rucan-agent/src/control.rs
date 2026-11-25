@@ -16,6 +16,7 @@ struct Entry {
     name: String,
     cwd: String,
     tmux_id: Option<String>,
+    ssh_target: Option<String>,
     native: Arc<NativeSession>,
     controller: Option<Uuid>,
 }
@@ -61,6 +62,7 @@ fn describe(id: Uuid, entry: &Entry) -> Value {
         "backend": if entry.tmux_id.is_some() { "tmux" } else { "native" },
         "ownership": if entry.tmux_id.is_some() { "external" } else { "managed" },
         "tmuxId": entry.tmux_id,
+        "sshTarget": entry.ssh_target,
         "pid": entry.native.pid(),
         "persistent": entry.native.persistence() == Persistence::Persistent,
         "state": describe_process(&entry.native.process_state()),
@@ -355,6 +357,21 @@ fn spawn(
     }
     let cwd = resolve_path(&cwd)?;
     let id = Uuid::new_v4();
+    let ssh_target = match args.as_slice() {
+        [option, verification, end, target]
+            if command == "ssh"
+                && option == "-o"
+                && verification == "StrictHostKeyChecking=ask"
+                && end == "--"
+                && (1..=128).contains(&target.len())
+                && target
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"_.:@-".contains(&byte)) =>
+        {
+            Some(target.clone())
+        }
+        _ => None,
+    };
     let mut program = CommandBuilder::new(command);
     program.args(args);
     program.cwd(&cwd);
@@ -371,6 +388,7 @@ fn spawn(
     let entry = Entry {
         name,
         tmux_id,
+        ssh_target,
         cwd: cwd
             .into_os_string()
             .into_string()

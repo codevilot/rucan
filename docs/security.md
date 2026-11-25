@@ -8,4 +8,6 @@ Use OpenSSH host key verification, private same-user Unix sockets, no public lis
 
 The interactive SSH tab validates the destination and passes it to OpenSSH as a single argument after `--`. OpenSSH asks for confirmation for unknown host keys and handles authentication in the session PTY.
 
+Session descriptions expose the destination of interactive OpenSSH tabs for reuse by the sidebar. Authentication stays inside OpenSSH.
+
 See [SECURITY.md](../SECURITY.md) for reporting guidance.

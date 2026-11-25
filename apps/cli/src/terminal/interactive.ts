@@ -5,7 +5,7 @@ import { Explorer } from "../explorer/explorer.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
 import { connectLocalAgent } from "../agent/local.js";
-import type { Config, WorkspaceConfig } from "../config/schema.js";
+import type { Config } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
@@ -95,8 +95,6 @@ class InteractiveWorkspace {
   #result: WorkspaceResult | undefined;
   #hosts: (string | undefined)[] = [];
   #hostIndex = 0;
-  #newEntries: WorkspaceConfig[] = [];
-  #newIndex = 0;
   #hostTrial = 0;
   #history: TerminalSnapshot | undefined;
   #offset = 0;
@@ -231,14 +229,22 @@ class InteractiveWorkspace {
     return this.#jobs;
   }
 
-  async #new(requested?: WorkspaceConfig): Promise<NativeWorkspace> {
-    const workspace = await createWorkspace(
-      this.#client,
-      this.#config,
-      this.#layout,
-      this.#host,
-      requested,
-    );
+  async #new(): Promise<NativeWorkspace> {
+    const current = this.#selected;
+    const workspace = current?.sshTarget
+      ? await openSshShell(
+          this.#client,
+          this.#config,
+          this.#layout,
+          current.sshTarget,
+        )
+      : await createWorkspace(
+          this.#client,
+          this.#config,
+          this.#layout,
+          this.#host,
+          current,
+        );
     this.#workspaces.push(workspace);
     return workspace;
   }
@@ -405,22 +411,27 @@ class InteractiveWorkspace {
         if (drag === "resize") await this.#resize();
         return;
       }
+      const action =
+        !event.release && event.button === 0
+          ? sidebarActionAt(event.row, event.col, this.#layout.sidebar)
+          : undefined;
+      if (action === "new") {
+        await this.#runAction("n");
+        return;
+      }
+      if (action === "background") {
+        if (this.#selected?.ownership === "managed")
+          await this.#pin(this.#selected);
+        return;
+      }
       if (
         event.col <= this.#layout.sidebar &&
         event.row >= 3 &&
         !event.release &&
         event.button === 0
       ) {
-        const action = sidebarActionAt(event.row, this.#layout.rows - 2);
         const workspace = this.#workspaces[event.row - 3];
-        if (action) {
-          await this.#runAction(action);
-          this.#draw();
-        } else if (
-          workspace &&
-          event.col === 4 &&
-          workspace.ownership === "managed"
-        )
+        if (workspace && event.col === 4 && workspace.ownership === "managed")
           await this.#pin(workspace);
         else if (workspace) {
           this.#mode = "terminal";
@@ -460,21 +471,6 @@ class InteractiveWorkspace {
       else if (key === "r") this.#explorer.refresh();
       else if (key === "o" && this.#explorer.file)
         await this.#openEditor(this.#explorer.file);
-    } else if (this.#mode === "create") {
-      if (key === "\x1b") this.#openPalette();
-      else if (key === "\x1b[A")
-        this.#newIndex = Math.max(0, this.#newIndex - 1);
-      else if (key === "\x1b[B")
-        this.#newIndex = Math.min(this.#newEntries.length, this.#newIndex + 1);
-      else if (key === "\r") {
-        const requested = this.#newEntries[this.#newIndex - 1];
-        if (requested?.backend === "tmux") {
-          await this.#openTmux(requested.session ?? null, requested.cwd);
-        } else {
-          await this.#select(await this.#new(requested));
-          this.#mode = "terminal";
-        }
-      }
     } else if (this.#mode === "hosts") {
       if (key === "\x1b") {
         this.#hostTrial++;
@@ -569,13 +565,16 @@ class InteractiveWorkspace {
   }
 
   async #pin(selected: NativeWorkspace): Promise<void> {
-    const workspace = decodeWorkspace(
-      await this.#client.request({
-        type: "pin",
-        session: selected.id,
-        persistent: !selected.persistent,
-      }),
-    );
+    const workspace = {
+      ...selected,
+      ...decodeWorkspace(
+        await this.#client.request({
+          type: "pin",
+          session: selected.id,
+          persistent: !selected.persistent,
+        }),
+      ),
+    };
     this.#workspaces = this.#workspaces.map((entry) =>
       entry.id === workspace.id ? workspace : entry,
     );
@@ -585,13 +584,16 @@ class InteractiveWorkspace {
 
   async #rename(): Promise<void> {
     if (!this.#selected) return;
-    const renamed = decodeWorkspace(
-      await this.#client.request({
-        type: "rename",
-        session: this.#selected.id,
-        name: this.#name,
-      }),
-    );
+    const renamed = {
+      ...this.#selected,
+      ...decodeWorkspace(
+        await this.#client.request({
+          type: "rename",
+          session: this.#selected.id,
+          name: this.#name,
+        }),
+      ),
+    };
     this.#workspaces = this.#workspaces.map((workspace) =>
       workspace.id === renamed.id ? renamed : workspace,
     );
@@ -678,11 +680,9 @@ class InteractiveWorkspace {
       this.#mode = "explorer";
       this.#explorer.enter(this.#selected?.cwd ?? "~");
     } else if (key === "n") {
-      this.#newEntries = this.#config.workspaces.filter(
-        ({ host }) => host === this.#host,
-      );
-      this.#newIndex = 0;
-      this.#mode = "create";
+      const workspace = await this.#new();
+      this.#mode = "terminal";
+      await this.#select(workspace);
     } else if (key === "c") {
       this.#sshTarget = "";
       this.#mode = "ssh";
@@ -799,8 +799,6 @@ class InteractiveWorkspace {
         controlsInput: this.#controlsInput,
         explorer:
           this.#mode === "explorer" ? this.#explorer.layout(rows) : undefined,
-        newEntries: this.#newEntries,
-        newIndex: this.#newIndex,
         hosts: this.#hosts,
         hostIndex: this.#hostIndex,
         tmux: this.#tmux,

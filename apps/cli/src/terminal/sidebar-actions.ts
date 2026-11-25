@@ -1,21 +1,27 @@
-export const sidebarActions = [
-  { key: "n", label: "+ New workspace" },
-  { key: "c", label: "↗ SSH connect" },
-] as const;
+import { fit } from "./chrome.js";
+import type { NativeWorkspace } from "./workspaces.js";
 
 export function workspaceSidebar(
   lines: readonly string[],
-  rows: number,
+  width: number,
+  selected?: NativeWorkspace,
 ): string[] {
-  if (rows < sidebarActions.length + 1) return [...lines];
-  const listRows = rows - sidebarActions.length;
+  const background =
+    selected?.ownership === "managed" ? (selected.persistent ? "●" : "○") : "–";
+  const title = fit(lines[0] ?? "", Math.max(0, width - 7));
   return [
-    ...Array.from({ length: listRows }, (_, index) => lines[index] ?? ""),
-    ...sidebarActions.map(({ label }) => label),
+    title.padEnd(Math.max(0, width - 7)) + ` BG${background} +`,
+    ...lines.slice(1),
   ];
 }
 
-export function sidebarActionAt(row: number, rows: number): string | undefined {
-  if (rows < sidebarActions.length + 1) return undefined;
-  return sidebarActions[row - (rows - sidebarActions.length + 2)]?.key;
+export function sidebarActionAt(
+  row: number,
+  col: number,
+  width: number,
+): "new" | "background" | undefined {
+  if (row !== 2 || width < 7) return undefined;
+  if (col === width - 1) return "new";
+  if (col >= width - 5 && col <= width - 3) return "background";
+  return undefined;
 }
