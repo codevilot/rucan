@@ -32,6 +32,9 @@ pub(crate) enum Operation {
         rows: u16,
         cols: u16,
     },
+    WorkspaceCwd {
+        session: String,
+    },
     FsList {
         path: String,
         exclusions: Vec<String>,

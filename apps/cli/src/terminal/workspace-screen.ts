@@ -1,4 +1,4 @@
-import type { Config, WorkspaceConfig } from "../config/schema.js";
+import type { Config } from "../config/schema.js";
 import type { Explorer } from "../explorer/explorer.js";
 import { version } from "../release/version.js";
 import type { Geometry, ScreenModel } from "./screen.js";
@@ -21,8 +21,6 @@ interface WorkspaceScreenState {
   history: TerminalSnapshot | undefined;
   controlsInput: boolean;
   explorer: ReturnType<Explorer["layout"]> | undefined;
-  newEntries: readonly WorkspaceConfig[];
-  newIndex: number;
   hosts: readonly (string | undefined)[];
   hostIndex: number;
   tmux: readonly TmuxTarget[];
@@ -38,8 +36,13 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
   const title = selected
     ? `${selected.name}${selected.persistent ? " ◆" : ""}`
     : "No session";
-  const footer = footerFor(state.mode, state.name, state.offset);
   const explorer = state.mode === "explorer" ? state.explorer : undefined;
+  const footer = footerFor(
+    state.mode,
+    state.name,
+    state.offset,
+    explorer?.canEdit,
+  );
   if (state.mode === "update" && state.update) {
     return {
       layout: state.layout,
@@ -58,14 +61,6 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
     };
   }
   const selection =
-    (state.mode === "create"
-      ? selectionLines(
-          "OPEN WORKSPACE",
-          ["Default shell", ...state.newEntries.map(({ name }) => name)],
-          state.newIndex,
-          state.layout.rows - 2,
-        )
-      : undefined) ??
     (state.mode === "hosts"
       ? selectionLines(
           "HOSTS",
@@ -105,12 +100,24 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       explorer?.sidebar ??
       workspaceSidebar(
         workspaceLabels(state.config, state.workspaces, selected?.id),
-        state.layout.rows - 2,
+        state.layout.sidebar,
+        selected,
       ),
     ...(selection && state.layout.sidebar === 0
       ? { contentLines: selection }
       : explorer
-        ? { contentLines: explorer.content }
+        ? {
+            contentLines:
+              state.layout.sidebar === 0
+                ? [
+                    ...explorer.sidebar.slice(
+                      0,
+                      Math.floor((state.layout.rows - 2) / 2),
+                    ),
+                    ...explorer.content,
+                  ]
+                : explorer.content,
+          }
         : state.mode === "exit"
           ? { contentLines: exitLines(state.host) }
           : state.mode === "ssh"

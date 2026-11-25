@@ -30,9 +30,11 @@ workspaces:
 
 The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. Use the sidebar or search the palette by workspace name or number to switch sessions.
 
-Use the sidebar buttons to open a new workspace or start an interactive SSH connection. The SSH button accepts an IP address, an OpenSSH alias, or `user@host` and runs OpenSSH on the current workspace host. OpenSSH verifies host keys and handles authentication in the terminal tab.
+Click **+** in the sidebar to open a new session in the selected workspace's environment. For an interactive SSH tab, it opens another connection to the same destination. Use **SSH connect** in the command palette to enter a new IP address, alias, or `user@host`. Click **BG** to pin or unpin the selected managed session.
 
 Drag the sidebar divider to resize it. Search the palette for **Hide sidebar** or **Show sidebar**.
+
+**Browse files** opens the selected session's current directory on its host. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.
 
 Inside a managed shell, run `rucan` to see session commands. Use `npx rucan@latest` if you run Rucan through npm without a global installation.
 

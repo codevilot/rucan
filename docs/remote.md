@@ -1,6 +1,6 @@
 # Remote workspaces
 
-The **SSH connect** button opens an interactive OpenSSH tab. Enter an IP address, alias, or `user@host`. The agent for the current workspace host runs OpenSSH, so that host's SSH configuration and credentials apply. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive.
+The **SSH connect** action in the command palette opens an interactive OpenSSH tab. Enter an IP address, alias, or `user@host`. The agent for the current workspace host runs OpenSSH, so that host's SSH configuration and credentials apply. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive. With that tab selected, **+** opens another connection to the same destination.
 
 ## Agent-backed remote workspaces
 
@@ -27,3 +27,7 @@ Remote platform checks report OS, architecture and libc or macOS version. On a s
 Agents preserve temporary and pinned native sessions when SSH drops. Pinning controls the explicit exit policy in the workspace. Host reboot or agent shutdown ends the ownership of native PTYs. tmux sessions are owned by the tmux server and are kept separate from RUCAN's lifecycle.
 
 The isolated SSH test uses a networkless Linux container and connects through OpenSSH ProxyCommand to its loopback listener. Separate SSH identities exercise reconnect after the first client process group is killed.
+
+## File browsing
+
+The command palette starts browsing in the selected workspace's current directory on the workspace agent. Older agents fall back to the workspace's starting directory. For a plain SSH tab opened from the local agent, file browsing requires an OSC 7 directory report from the remote shell and a reachable Rucan agent with non-interactive OpenSSH authentication. Browse and preview requests go to that destination. Direct SSH tabs opened from a remote agent can use an agent-backed workspace on the final destination for file access.

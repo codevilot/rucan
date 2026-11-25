@@ -115,6 +115,19 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["type", "session"],
+          "properties": {
+            "type": {
+              "const": "workspace-cwd"
+            },
+            "session": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "required": ["type", "path", "exclusions"],
           "properties": {
             "type": {

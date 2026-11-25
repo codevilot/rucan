@@ -19,6 +19,7 @@ export class SessionClient {
   readonly #incoming: AsyncGenerator<Frame>;
   #requestId = 0;
   #pending = false;
+  #workspaceCwd = false;
 
   private constructor(socket: Duplex) {
     this.#socket = socket;
@@ -52,7 +53,7 @@ export class SessionClient {
             type: "hello",
             minVersion: 1,
             maxVersion: 1,
-            capabilities: ["native-session"],
+            capabilities: ["native-session", "workspace-cwd"],
           }),
         ),
         deadline,
@@ -70,6 +71,7 @@ export class SessionClient {
       ) {
         throw new Error("Invalid agent negotiation response");
       }
+      client.#workspaceCwd = reply.capabilities.includes("workspace-cwd");
       return client;
     } catch (error) {
       client.close();
@@ -159,6 +161,10 @@ export class SessionClient {
 
   get closed(): boolean {
     return this.#socket.destroyed;
+  }
+
+  get supportsWorkspaceCwd(): boolean {
+    return this.#workspaceCwd;
   }
 
   close(): void {

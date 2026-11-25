@@ -1,6 +1,7 @@
 import type { Config, WorkspaceConfig } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { Geometry } from "./screen.js";
+import { validSshDestination } from "../agent/ssh-destination.js";
 
 export interface NativeWorkspace {
   name: string;
@@ -10,6 +11,7 @@ export interface NativeWorkspace {
   ownership: "managed" | "external";
   persistent: boolean;
   running: boolean;
+  sshTarget?: string;
 }
 
 export function decodeWorkspace(raw: unknown): NativeWorkspace {
@@ -49,6 +51,11 @@ export function decodeWorkspace(raw: unknown): NativeWorkspace {
     cwd: workspace.cwd,
     persistent: workspace.persistent,
     running: workspace.state.type === "running",
+    ...("sshTarget" in workspace &&
+    typeof workspace.sshTarget === "string" &&
+    validSshDestination(workspace.sshTarget)
+      ? { sshTarget: workspace.sshTarget }
+      : {}),
   };
 }
 
@@ -102,14 +109,20 @@ export async function createWorkspace(
   config: Config,
   layout: Geometry,
   host?: string,
-  requested?: WorkspaceConfig,
+  current?: NativeWorkspace,
 ): Promise<NativeWorkspace> {
-  const workspace = requested ?? defaultWorkspace(config, host);
+  const configured =
+    current &&
+    config.workspaces.find(
+      ({ host: entry, backend, name }) =>
+        entry === host && backend === "native" && name === current.name,
+    );
+  const workspace = configured || defaultWorkspace(config, host);
   return decodeWorkspace(
     await client.request({
       type: "create",
       name: workspace.name,
-      cwd: workspace.cwd,
+      cwd: current?.cwd ?? workspace.cwd,
       command: workspace.command,
       args: [],
       rows: layout.terminalRows,

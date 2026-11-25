@@ -12,6 +12,10 @@ flowchart TD
 
 The CLI loads configuration and renders local and remote agent sessions from a validated cell grid. The Rust agent binds a private Unix socket and owns the PTYs and screen state. The Ink fixture and portable PTY example remain isolated test harnesses. Extract an SDK package when the first IPC consumer exists. Add a core package when logic has a second consumer or a meaningful dependency boundary.
 
+The agent retains the destination of interactive OpenSSH tabs in their session descriptions. The CLI uses it to start a separate SSH connection when the user opens a new session from that tab.
+
+The CLI resolves the selected session's working directory before opening the file explorer. The agent looks up an active PTY child's directory on its host and retains the latest OSC 7 path reported by the terminal.
+
 | Boundary                                             | Owner                   |
 | ---------------------------------------------------- | ----------------------- |
 | Config defaults, parsing and validation              | CLI config module       |

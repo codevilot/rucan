@@ -92,7 +92,10 @@ impl NativeSession {
                 rows,
                 cols,
                 scrollback_lines.min(200_000 / usize::from(cols.get())),
-                TerminalReplies(Arc::clone(&input)),
+                TerminalReplies {
+                    input: Arc::clone(&input),
+                    reported_directory: None,
+                },
             ),
             sequence: watch::channel(0).0,
             persistence,
@@ -180,6 +183,14 @@ impl NativeSession {
 
     pub fn process_state(&self) -> ProcessState {
         lock(&self.state).process.clone()
+    }
+
+    pub(crate) fn reported_directory(&self) -> Option<String> {
+        lock(&self.state)
+            .terminal
+            .callbacks()
+            .reported_directory
+            .clone()
     }
 
     pub fn persistence(&self) -> Persistence {

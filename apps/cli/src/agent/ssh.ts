@@ -5,6 +5,7 @@ import { isAbsolute } from "node:path";
 import { Duplex } from "node:stream";
 import { promisify } from "node:util";
 import { SessionClient } from "../protocol/client.js";
+import { validSshDestination } from "./ssh-destination.js";
 
 export interface RemotePlatform {
   os: "linux" | "darwin";
@@ -53,11 +54,11 @@ export function validSshHost(host: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u.test(host);
 }
 
-function sshArguments(host: string, script: string): string[] {
-  if (!validSshHost(host))
+function sshArguments(host: string, script: string, direct = false): string[] {
+  if (!(direct ? validSshDestination(host) : validSshHost(host)))
     throw new Error("Expected an OpenSSH alias or DNS hostname");
   const quoted = "'" + script.replaceAll("'", "'\\''") + "'";
-  const config = process.env.RUCAN_SSH_CONFIG;
+  const config = direct ? undefined : process.env.RUCAN_SSH_CONFIG;
   if (config && !isAbsolute(config))
     throw new Error("RUCAN_SSH_CONFIG must be absolute");
   const options = config ? ["-F", config] : [];
@@ -91,8 +92,11 @@ export async function inspectRemote(host: string): Promise<RemotePlatform> {
   return { os, arch, runtime, loginManager };
 }
 
-export async function connectRemoteAgent(host: string): Promise<SessionClient> {
-  const child = spawn("ssh", sshArguments(host, bridge), {
+export async function connectRemoteAgent(
+  host: string,
+  direct = false,
+): Promise<SessionClient> {
+  const child = spawn("ssh", sshArguments(host, bridge, direct), {
     stdio: ["pipe", "pipe", "pipe"],
   });
   const stream = Duplex.from({ readable: child.stdout, writable: child.stdin });
