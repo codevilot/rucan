@@ -34,7 +34,7 @@ jobs:
           mkdir -p target/distribution
           cp target/release/ssui-agent target/distribution/
           target/distribution/ssui-agent --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}
           path: target/distribution/ssui-agent
@@ -69,7 +69,7 @@ jobs:
             target/ssui-*.tgz
             target/npm-staging/agents/manifest.json
             target/npm-staging/agents/*/ssui-agent
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ssui-release-candidate
           path: |
