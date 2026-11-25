@@ -13,7 +13,13 @@ import type { Config, WorkspaceConfig } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
-import { footerFor, menuFor, selectionLines, type Mode } from "./view.js";
+import {
+  exitLines,
+  footerFor,
+  menuFor,
+  selectionLines,
+  type Mode,
+} from "./view.js";
 import { listTmux, openTmux, type TmuxTarget } from "./tmux.js";
 import { TerminalWatch } from "./watch.js";
 import { terminalMouse } from "./mouse.js";
@@ -97,6 +103,8 @@ class InteractiveWorkspace {
   #history: TerminalSnapshot | undefined;
   #offset = 0;
   #name = "";
+  #command = "";
+  #commandError = false;
   #tmux: TmuxTarget[] = [];
   #tmuxIndex = 0;
   #workspaces: NativeWorkspace[] = [];
@@ -146,8 +154,8 @@ class InteractiveWorkspace {
           process.stdout.rows || 24,
           process.stdout.columns || 80,
         );
-        await this.#resize();
         this.#draw();
+        await this.#resize();
       });
     };
     const done = new Promise<void>((resolve) => {
@@ -417,8 +425,10 @@ class InteractiveWorkspace {
       else if (key === "\r" && this.#tmux[this.#tmuxIndex]) {
         await this.#openTmux(this.#tmux[this.#tmuxIndex]?.id ?? null);
       }
+    } else if (this.#mode === "command") {
+      await this.#readCommand(key);
     } else if (this.#mode === "exit") {
-      if (key === "1") await this.#exit("keep-all");
+      if (key === "1" || key === "\r") await this.#exit("keep-all");
       if (key === "2") await this.#exit("keep-pinned");
       if (key === "3") await this.#exit("terminate");
       if (key === "\x1b" || key === "4") this.#mode = "menu";
@@ -536,12 +546,15 @@ class InteractiveWorkspace {
   async #menu(key: string): Promise<void> {
     if (key === "\x1b") {
       this.#mode = "terminal";
+    } else if (key.startsWith("/")) {
+      this.#command = "";
+      this.#commandError = false;
+      this.#mode = "command";
+      await this.#readCommand(key.slice(1));
     } else if (key === "d") {
       await this.#exit("keep-all");
-    } else if (key === "q") {
-      const policy = this.#config.defaults.on_exit;
-      if (policy === "ask") this.#mode = "exit";
-      else await this.#exit(policy);
+    } else if (key === "q" || key === "Q") {
+      await this.#requestExit();
     } else if (key === "r" && this.#selected) {
       this.#name = "";
       this.#mode = "rename";
@@ -596,6 +609,29 @@ class InteractiveWorkspace {
     }
   }
 
+  async #readCommand(input: string): Promise<void> {
+    if (input === "\x1b") {
+      this.#mode = "menu";
+      return;
+    }
+    const [text = "", submitted] = input.split(/(\r|\n)/u, 2);
+    if (!/^[a-zA-Z\x7f]*$/u.test(text)) return;
+    for (const character of text.slice(0, 32)) {
+      if (character === "\x7f") this.#command = this.#command.slice(0, -1);
+      else if (this.#command.length < 24) this.#command += character;
+    }
+    if (text) this.#commandError = false;
+    if (!submitted) return;
+    if (this.#command.toLowerCase() === "exit") await this.#requestExit();
+    else this.#commandError = true;
+  }
+
+  async #requestExit(): Promise<void> {
+    const policy = this.#config.defaults.on_exit;
+    if (policy === "ask") this.#mode = "exit";
+    else await this.#exit(policy);
+  }
+
   async #exit(policy: ExitPolicy): Promise<void> {
     if (policy !== "keep-all") {
       for (const workspace of await listWorkspaces(this.#client)) {
@@ -622,7 +658,6 @@ class InteractiveWorkspace {
       this.#config.terminal.prefix_key,
       this.#name,
       this.#offset,
-      this.#update,
     );
     const explorer =
       this.#mode === "explorer"
@@ -639,9 +674,20 @@ class InteractiveWorkspace {
       });
       return;
     }
+    const running = this.#snapshot?.state === "running";
     this.#screen.draw({
       layout: this.#layout,
-      header: `rucan  │  ${title}  │  ${this.#status || (this.#snapshot?.state === "running" ? (this.#host ? `${this.#host} connected` : "Local agent connected") : "Session exited")}`,
+      header: {
+        tab: title,
+        status:
+          this.#status ||
+          (running
+            ? this.#host
+              ? `${this.#host} connected`
+              : "Local agent connected"
+            : "Session exited"),
+        healthy: running && !this.#status,
+      },
       footer:
         this.#update && this.#mode !== "exit"
           ? `${footer} · U Review v${this.#update}`
@@ -672,22 +718,33 @@ class InteractiveWorkspace {
             )
           : undefined) ??
         explorer?.sidebar ??
-        workspaceLabels(
-          this.#config,
-          this.#workspaces,
-          selected?.id,
-          this.#mode === "menu" ? menuFor(this.#update) : undefined,
-        ),
+        workspaceLabels(this.#config, this.#workspaces, selected?.id),
       ...(explorer
         ? { contentLines: explorer.content }
-        : this.#mode === "menu" && !this.#snapshot
+        : this.#mode === "menu"
           ? { contentLines: menuFor(this.#update) }
-          : {}),
-      snapshot: explorer
-        ? undefined
-        : this.#mode === "history"
-          ? this.#history
-          : this.#snapshot,
+          : this.#mode === "exit"
+            ? { contentLines: exitLines(this.#host) }
+            : this.#mode === "command"
+              ? {
+                  contentLines: [
+                    `Command  /${this.#command}▏`,
+                    "",
+                    this.#commandError
+                      ? "Unknown command. Try /exit."
+                      : "/exit  Quit Rucan",
+                  ],
+                }
+              : {}),
+      snapshot:
+        explorer ||
+        this.#mode === "menu" ||
+        this.#mode === "exit" ||
+        this.#mode === "command"
+          ? undefined
+          : this.#mode === "history"
+            ? this.#history
+            : this.#snapshot,
       showCursor: this.#mode === "terminal" && this.#controlsInput,
     });
   }

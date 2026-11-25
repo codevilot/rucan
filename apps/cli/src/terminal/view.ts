@@ -2,6 +2,7 @@ export type Mode =
   | "terminal"
   | "menu"
   | "exit"
+  | "command"
   | "explorer"
   | "tmux"
   | "update"
@@ -15,7 +16,6 @@ export function footerFor(
   prefix: string,
   name: string,
   scrollback: number,
-  update?: string,
 ): string {
   switch (mode) {
     case "create":
@@ -32,26 +32,31 @@ export function footerFor(
       return "↑↓ Select · Enter Attach · N Open New Tmux Session · Esc Back";
     case "explorer":
       return "↑↓ Select · Enter Expand/Preview · R Refresh · O Editor · Esc Back";
+    case "command":
+      return "Enter Run command · Esc Back";
     case "exit":
-      return "1 Keep all · 2 Keep pinned · 3 Stop managed · 4 Cancel";
+      return "Enter Keep all · Esc Back";
     case "menu":
-      return "↑↓ / 1–9 Switch · N New · P Pin · H Hosts · D Detach · Q Quit";
+      return "Q Quit · Esc Return to terminal · ↑↓ / 1–9 Switch";
     case "terminal":
-      return `${prefix} Menu${update ? ` · Update v${update} available` : ""}`;
+      return `${prefix} Menu · Q or /exit to quit`;
   }
 }
 
 export function menuFor(update?: string): string[] {
   return [
-    "N New",
+    "Workspace actions",
+    "",
+    "/exit or Q  Quit Rucan",
+    "D Close UI and keep sessions",
+    "",
+    "N New workspace",
     "P Pin",
     "H Hosts",
     "E Files",
     "T Tmux",
     "S History",
     "R Rename",
-    "D Detach",
-    "Q Quit",
     ...(update ? [`U Update to v${update}`] : []),
   ];
 }
@@ -70,5 +75,18 @@ export function selectionLines(
       .map(
         (entry, offset) => `${index === start + offset ? "›" : " "} ${entry}`,
       ),
+  ];
+}
+
+export function exitLines(host: string | undefined): string[] {
+  return [
+    "Quit Rucan",
+    "",
+    "Enter / 1  Close UI and keep all sessions",
+    "2  Keep pinned sessions only",
+    "3  Stop all Rucan-managed sessions",
+    "Esc / 4  Go back",
+    "",
+    `Session options apply to ${host ?? "this computer"}.`,
   ];
 }

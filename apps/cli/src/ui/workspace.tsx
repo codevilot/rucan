@@ -1,6 +1,7 @@
 import { Box, Text, useApp, useInput, useWindowSize } from "ink";
 import { useState, type ReactElement } from "react";
 import type { Config } from "../config/schema.js";
+import { version } from "../release/version.js";
 
 const fixtureExplorer = ["▾ example-project", "  ▸ src", "    README.md"];
 
@@ -51,7 +52,7 @@ export function WorkspaceView({ config }: { config: Config }): ReactElement {
     <Box flexDirection="column" width={columns} height={rows}>
       <Box justifyContent="space-between" paddingX={1}>
         <Text bold color="cyan">
-          rucan
+          rucan v{version}
         </Text>
         <Text color="yellow">Fixture mode · agent offline</Text>
       </Box>
