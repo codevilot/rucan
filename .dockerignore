@@ -1,0 +1,12 @@
+**
+!Cargo.toml
+!Cargo.lock
+!crates/
+!crates/ssui-agent/
+!crates/ssui-agent/**
+!packages/
+!packages/protocol/
+!packages/protocol/**
+!tests/
+!tests/e2e/
+!tests/e2e/ssh.Dockerfile

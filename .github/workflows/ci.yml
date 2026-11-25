@@ -1,0 +1,60 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - run: rustup default stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm exec prettier --check .
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh vim
+      - run: pnpm poc
+      - run: python3 tests/e2e/local_tty.py
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: pnpm audit --audit-level high
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit
+
+  isolated-ssh:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc -p apps/cli
+      - run: docker build -f tests/e2e/ssh.Dockerfile --target artifact --output type=local,dest=target/ssh-e2e .
+      - run: docker build -f tests/e2e/ssh.Dockerfile --target remote -t ssui-e2e-ssh:local .
+      - run: docker build -f tests/e2e/ssh.Dockerfile --target remote-tmux -t ssui-e2e-tmux:local .
+      - run: python3 tests/e2e/remote_ssh.py
+      - run: python3 tests/e2e/remote_ssh.py --tmux

@@ -1,0 +1,39 @@
+{
+  "name": "ssui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "ssui": "./dist/main.js"
+  },
+  "dependencies": {
+    "ink": "7.0.3",
+    "react": "^19.2.0",
+    "string-width": "^8.3.0",
+    "yaml": "^2.8.0"
+  },
+  "description": "Terminal-native local and SSH workspace manager with persistent sessions",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codevilot/ssui.git",
+    "directory": "apps/cli"
+  },
+  "files": [
+    "dist",
+    "agents",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "license": "Apache-2.0"
+}

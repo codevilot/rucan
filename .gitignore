@@ -1,0 +1,8 @@
+node_modules/
+dist/
+/target/
+coverage/
+.DS_Store
+__pycache__/
+apps/cli/agents/
+*.tgz

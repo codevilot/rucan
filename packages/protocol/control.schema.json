@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SSUI v1 control request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "operation"],
+  "properties": {
+    "id": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295,
+      "x-rust-type": "u32"
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "list"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "force"],
+          "properties": {
+            "type": {
+              "const": "shutdown"
+            },
+            "force": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session", "name"],
+          "properties": {
+            "type": {
+              "const": "rename"
+            },
+            "session": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session", "offset"],
+          "properties": {
+            "type": {
+              "const": "scroll"
+            },
+            "session": {
+              "type": "string"
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295,
+              "x-rust-type": "usize"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "tmux-list"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "name", "cwd", "rows", "cols"],
+          "properties": {
+            "type": {
+              "const": "tmux-open"
+            },
+            "target": {
+              "type": ["string", "null"]
+            },
+            "name": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "x-rust-type": "u16"
+            },
+            "cols": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "x-rust-type": "u16"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "path", "exclusions"],
+          "properties": {
+            "type": {
+              "const": "fs-list"
+            },
+            "path": {
+              "type": "string"
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "path"],
+          "properties": {
+            "type": {
+              "const": "fs-preview"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "command",
+            "args",
+            "cwd",
+            "name",
+            "rows",
+            "cols",
+            "persistent"
+          ],
+          "properties": {
+            "type": {
+              "const": "create"
+            },
+            "command": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cwd": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "x-rust-type": "u16"
+            },
+            "cols": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "x-rust-type": "u16"
+            },
+            "persistent": {
+              "type": "boolean"
+            },
+            "scrollback": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295,
+              "x-rust-type": "usize"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session"],
+          "properties": {
+            "type": {
+              "const": "attach"
+            },
+            "session": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session"],
+          "properties": {
+            "type": {
+              "const": "detach"
+            },
+            "session": {
+              "type": "string"
+            },
+            "force": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session"],
+          "properties": {
+            "type": {
+              "const": "snapshot"
+            },
+            "session": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session", "after"],
+          "properties": {
+            "type": {
+              "const": "watch"
+            },
+            "session": {
+              "type": "string"
+            },
+            "after": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "x-rust-type": "u64"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session", "persistent"],
+          "properties": {
+            "type": {
+              "const": "pin"
+            },
+            "session": {
+              "type": "string"
+            },
+            "persistent": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session", "rows", "cols"],
+          "properties": {
+            "type": {
+              "const": "resize"
+            },
+            "session": {
+              "type": "string"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "x-rust-type": "u16"
+            },
+            "cols": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "x-rust-type": "u16"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "session"],
+          "properties": {
+            "type": {
+              "const": "kill"
+            },
+            "session": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

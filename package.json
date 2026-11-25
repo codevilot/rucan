@@ -1,0 +1,30 @@
+{
+  "name": "ssui-workspace",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx apps/cli/src/main.tsx",
+    "poc": "tsx benchmarks/terminal-poc.ts",
+    "build": "tsc -p apps/cli && cargo build --locked",
+    "test": "vitest run && cargo test --locked",
+    "lint": "node scripts/generate-control.mjs --check && eslint . && cargo fmt --all --check && cargo clippy --locked --all-targets -- -D warnings",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "format": "prettier --write . && cargo fmt --all",
+    "benchmark": "tsx benchmarks/agent.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19.2",
+    "@xterm/headless": "6.0.0",
+    "eslint": "^10",
+    "prettier": "^3",
+    "tsx": "^4",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8",
+    "vitest": "^4"
+  }
+}

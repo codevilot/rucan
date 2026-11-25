@@ -1,0 +1,4 @@
+# Kind, payload (hex, or -), encoded frame (hex)
+1 7b7d 00000003017b7d
+2 00ff1b80 000000050200ff1b80
+255 - 00000001ff

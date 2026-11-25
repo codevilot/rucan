@@ -1,0 +1,78 @@
+name: Release candidate artifacts
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  agents:
+    name: Agent for ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux-x64
+          - runner: ubuntu-24.04-arm
+            platform: linux-arm64
+          - runner: macos-15-intel
+            platform: darwin-x64
+          - runner: macos-15
+            platform: darwin-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - if: runner.os == 'Linux'
+        run: |
+          docker build -f tests/e2e/ssh.Dockerfile --target artifact --output type=local,dest=target/distribution .
+          file target/distribution/ssui-agent
+          target/distribution/ssui-agent --version
+      - if: runner.os == 'macOS'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "12.0"
+        run: |
+          rustup toolchain install stable --profile minimal
+          cargo +stable build --locked --release -p ssui-agent
+          mkdir -p target/distribution
+          cp target/release/ssui-agent target/distribution/
+          target/distribution/ssui-agent --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: target/distribution/ssui-agent
+          if-no-files-found: error
+  package:
+    needs: agents
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/download-artifact@v4
+        with:
+          path: target/target-artifacts
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc -p apps/cli
+      - run: node scripts/stage-package.mjs target/target-artifacts target/npm-staging
+      - run: |
+          npm pack ./target/npm-staging --pack-destination target
+          npm install --prefix target/package-smoke --ignore-scripts target/ssui-*.tgz
+          target/package-smoke/node_modules/.bin/ssui --version
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            target/ssui-*.tgz
+            target/npm-staging/agents/manifest.json
+            target/npm-staging/agents/*/ssui-agent
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ssui-release-candidate
+          path: |
+            target/ssui-*.tgz
+            target/npm-staging/agents/
+          if-no-files-found: error

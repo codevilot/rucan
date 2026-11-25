@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/ssui-agent"]
+resolver = "3"
