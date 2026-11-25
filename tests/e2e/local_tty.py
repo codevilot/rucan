@@ -21,6 +21,7 @@ def read_until(master, marker, seconds=8):
             data.extend(os.read(master, 65536))
     if marker not in data:
         raise AssertionError(f"Missing {marker!r} in {bytes(data[-4000:])!r}")
+    return data
 
 
 def run():
@@ -59,12 +60,20 @@ def run():
 
 
 def exercise(node, env):
+    version = subprocess.check_output(node + ["--version"], env=env).strip()
+    name, number = version.split()
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
     original = termios.tcgetattr(slave)
     process = subprocess.Popen(node, env=env, stdin=slave, stdout=slave, stderr=slave)
     try:
-        read_until(master, b"ctrl+g Menu")
+        assert name + b" v" + number in read_until(master, b"ctrl+g Menu")
+        for rows, cols, terminal_cols in [(24, 40, 40), (24, 100, 75)]:
+            fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+            process.send_signal(signal.SIGWINCH)
+            read_until(master, b"\x1b[2J")
+            os.write(master, b"stty size\r")
+            read_until(master, f"{rows - 2} {terminal_cols}".encode())
         os.write(master, b"printf 'PTY-%s\\n' smoke\r")
         read_until(master, b"PTY-smoke")
 

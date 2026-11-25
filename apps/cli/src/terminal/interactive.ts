@@ -154,8 +154,8 @@ class InteractiveWorkspace {
           process.stdout.rows || 24,
           process.stdout.columns || 80,
         );
-        await this.#resize();
         this.#draw();
+        await this.#resize();
       });
     };
     const done = new Promise<void>((resolve) => {

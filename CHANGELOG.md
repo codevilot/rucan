@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
+
+- Made workspace navigation and exit actions easier to find.
+- Displayed the running CLI version in the workspace header.
+- Repainted the workspace when the terminal size changes.
+- Checked that the npm archive includes all four native agents and starts the matching bundled agent.
+
+## 0.1.0
 
 - Renamed the project, npm package, and CLI to Rucan. The native agent is `rucan-agent`.
 

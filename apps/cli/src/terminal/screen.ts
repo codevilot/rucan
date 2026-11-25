@@ -1,4 +1,5 @@
 import stringWidth from "string-width";
+import { version } from "../release/version.js";
 import type { Style, TerminalSnapshot } from "./snapshot.js";
 
 const reset = "\x1b[0m";
@@ -79,7 +80,7 @@ export interface ScreenModel {
 
 function renderHeader(header: ScreenModel["header"], width: number): string {
   if (typeof header === "string") return chrome + fit(header, width) + reset;
-  const logo = fit(" rucan ", width);
+  const logo = fit(` rucan v${version} `, width);
   const remaining = width - stringWidth(logo);
   if (remaining < 3) return brand + logo + reset;
   const tab = fit(
@@ -105,6 +106,7 @@ function renderHeader(header: ScreenModel["header"], width: number): string {
 export class Screen {
   #output: NodeJS.WriteStream;
   #previous: string[] = [];
+  #paintedLayout: Geometry | undefined;
   #latest: ScreenModel | undefined;
   #blocked = false;
   #keyModes = "";
@@ -175,6 +177,16 @@ export class Screen {
     lines.push(chrome + fit(footer, layout.cols) + reset);
 
     let output = hideCursor;
+    if (
+      this.#paintedLayout &&
+      (this.#paintedLayout.rows !== layout.rows ||
+        this.#paintedLayout.cols !== layout.cols)
+    ) {
+      // The outer terminal may have reflowed rows since the last frame.
+      output += reset + "\x1b[2J";
+      this.#previous = [];
+    }
+    this.#paintedLayout = layout;
     const last = Math.max(lines.length, this.#previous.length);
     for (let index = 0; index < last; index++) {
       const line = lines[index] ?? "";
