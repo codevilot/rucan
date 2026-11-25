@@ -80,7 +80,7 @@ def exercise_tmux(env):
         os.write(master, b"\7")
         read_until(master, b"P Pin")
         os.write(master, b"q")
-        read_until(master, b"3 Stop managed")
+        read_until(master, b"3  Stop all Rucan-managed sessions")
         os.write(master, b"3")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
