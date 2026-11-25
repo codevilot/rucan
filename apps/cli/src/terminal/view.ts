@@ -39,7 +39,7 @@ export function footerFor(
     case "menu":
       return "Q Quit · Esc Return to terminal · ↑↓ / 1–9 Switch";
     case "terminal":
-      return `${prefix} Menu · Q or /exit to quit`;
+      return `${prefix} Menu (F12) · Type exit to close the current shell`;
   }
 }
 

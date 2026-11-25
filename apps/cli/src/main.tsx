@@ -15,6 +15,12 @@ async function main(args: readonly string[]): Promise<void> {
     console.log(`rucan ${version}`);
     return;
   }
+  if (args.length === 0 && process.env.RUCAN_SESSION_ID) {
+    console.log(
+      "Rucan session commands\n\n  rucan ls       List sessions\n  rucan pin      Pin this session\n  rucan unpin    Unpin this session\n  rucan --help   Show all CLI commands\n\nType exit to close this shell. Open the Rucan menu to close the UI.",
+    );
+    return;
+  }
   if (args.length === 1 && args[0] === "--help") {
     console.log(
       "Usage: rucan [attach | remote | tmux | update | doctor | config | ls | status | new | pin | unpin | detach | rename | kill | shutdown | --fixture | --help | --version]\n\nOpen the workspace UI or control a local terminal session.",

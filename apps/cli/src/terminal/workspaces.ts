@@ -62,6 +62,24 @@ export async function listWorkspaces(
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+export function reconcileWorkspaces(
+  previous: readonly NativeWorkspace[],
+  running: readonly NativeWorkspace[],
+  selectedId: string | undefined,
+): { workspaces: NativeWorkspace[]; next: NativeWorkspace | undefined } {
+  const current = new Map(
+    running.map((workspace) => [workspace.id, workspace]),
+  );
+  const workspaces = previous.filter(({ id }) => current.has(id));
+  for (const { id } of workspaces) current.delete(id);
+  workspaces.push(...current.values());
+  const index = previous.findIndex(({ id }) => id === selectedId);
+  return {
+    workspaces,
+    next: workspaces[Math.min(Math.max(0, index), workspaces.length - 1)],
+  };
+}
+
 function defaultWorkspace(
   config: Config,
   host: string | undefined,
@@ -114,8 +132,7 @@ export function workspaceLabels(
       const pin =
         workspace.backend === "tmux" ? "T" : workspace.persistent ? "◆" : "◇";
       const slot = index < 9 ? String(index + 1) : " ";
-      const exited = workspace.running ? "" : " ×";
-      return `${selected}${slot} ${pin} ${workspace.name}${exited}`;
+      return `${selected}${slot} ${pin} ${workspace.name}`;
     }),
   ];
   for (const workspace of config.workspaces) {

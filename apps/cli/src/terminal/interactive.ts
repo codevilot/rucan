@@ -22,6 +22,7 @@ import {
 } from "./view.js";
 import { listTmux, openTmux, type TmuxTarget } from "./tmux.js";
 import { TerminalWatch } from "./watch.js";
+import { watchWorkspaceList } from "./workspace-refresh.js";
 import { terminalMouse } from "./mouse.js";
 import { geometry, Screen } from "./screen.js";
 import { decodeSnapshot, type TerminalSnapshot } from "./snapshot.js";
@@ -29,6 +30,7 @@ import {
   createWorkspace,
   decodeWorkspace,
   listWorkspaces,
+  reconcileWorkspaces,
   workspaceLabels,
   type NativeWorkspace,
 } from "./workspaces.js";
@@ -136,14 +138,15 @@ class InteractiveWorkspace {
   async run(
     requested: string | undefined,
   ): Promise<WorkspaceResult | undefined> {
-    this.#workspaces = await listWorkspaces(this.#client);
+    this.#workspaces = (await listWorkspaces(this.#client)).filter(
+      ({ running }) => running,
+    );
     const target = requested
       ? this.#workspaces.find(
           ({ id, name }) => id === requested || name === requested,
         )
       : this.#workspaces.find(({ running }) => running);
     if (requested && !target) throw new Error(`Unknown session ${requested}`);
-    await this.#select(target ?? (await this.#new()), false);
 
     const onResize = (): void => {
       if (this.#resizePending) return;
@@ -163,7 +166,9 @@ class InteractiveWorkspace {
     });
     this.#screen.enter();
     let unmount: (() => void) | undefined;
+    let stopRefresh: (() => void) | undefined;
     try {
+      await this.#select(target ?? (await this.#new()), false);
       unmount = mountRawInput(this.#config.terminal.prefix_key, {
         input: (events) =>
           this.#enqueue(async () => {
@@ -176,6 +181,9 @@ class InteractiveWorkspace {
         stop: () => this.#stop(),
       });
       this.#draw();
+      stopRefresh = watchWorkspaceList(() =>
+        this.#enqueue(() => this.#refreshWorkspaces()),
+      );
       if (this.#config.updates.check_on_startup) {
         void availableUpdate()
           .then((target) => {
@@ -187,6 +195,7 @@ class InteractiveWorkspace {
       }
       await done;
     } finally {
+      stopRefresh?.();
       this.#stop();
       this.#client.close();
       unmount?.();
@@ -243,12 +252,19 @@ class InteractiveWorkspace {
     this.#snapshot = decodeSnapshot(
       await this.#client.request({ type: "snapshot", session: workspace.id }),
     );
-    await this.#resize();
+    if (this.#snapshot.state !== "running") {
+      await this.#refreshWorkspaces(workspace.id, render);
+      return;
+    }
     if (render) this.#draw();
     this.#watcher.start(
       workspace.id,
       this.#snapshot,
       (snapshot) => {
+        if (snapshot.state !== "running") {
+          void this.#enqueue(() => this.#refreshWorkspaces(workspace.id));
+          return;
+        }
         this.#snapshot = snapshot;
         this.#draw();
       },
@@ -257,6 +273,39 @@ class InteractiveWorkspace {
         this.#draw();
       },
     );
+    await this.#resize();
+  }
+
+  async #refreshWorkspaces(exitedId?: string, render = true): Promise<void> {
+    const running = (await listWorkspaces(this.#client)).filter(
+      ({ id, running }) => running && id !== exitedId,
+    );
+    const selected = this.#selected;
+    const previous = this.#workspaces;
+    const { workspaces, next } = reconcileWorkspaces(
+      previous,
+      running,
+      selected?.id,
+    );
+    this.#workspaces = workspaces;
+    if (selected ? !workspaces.some(({ id }) => id === selected.id) : next) {
+      this.#watcher.stop();
+      this.#selected = undefined;
+      this.#snapshot = undefined;
+      this.#controlsInput = false;
+      this.#status = "";
+      if (this.#mode === "history") this.#mode = "terminal";
+      if (next) {
+        await this.#select(next, render);
+        return;
+      }
+    }
+    if (
+      render &&
+      (previous.length !== workspaces.length ||
+        workspaces.some((workspace, index) => workspace !== previous[index]))
+    )
+      this.#draw();
   }
 
   async #recoverControl(): Promise<void> {
@@ -685,7 +734,7 @@ class InteractiveWorkspace {
             ? this.#host
               ? `${this.#host} connected`
               : "Local agent connected"
-            : "Session exited"),
+            : "No active workspace"),
         healthy: running && !this.#status,
       },
       footer:

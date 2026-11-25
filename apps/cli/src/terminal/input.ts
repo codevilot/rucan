@@ -1,6 +1,7 @@
 const pasteStart = Buffer.from("\x1b[200~");
 const pasteEnd = Buffer.from("\x1b[201~");
 const mouseStart = Buffer.from("\x1b[<");
+const f12 = Buffer.from("\x1b[24~");
 
 export interface MouseEvent {
   button: number;
@@ -83,11 +84,20 @@ export class InputRouter {
             length = marker.length;
           }
         } else if (!this.#paste) {
-          const mouse = mouseReport(remainder);
-          if (mouse === "incomplete") incomplete = true;
-          else if (mouse) {
-            event = { type: "mouse", ...mouse.event };
-            length = mouse.length;
+          const key = remainder.subarray(0, f12.length);
+          if (f12.subarray(0, key.length).equals(key)) {
+            incomplete = key.length < f12.length;
+            if (!incomplete) {
+              event = { type: "prefix" };
+              length = f12.length;
+            }
+          } else {
+            const mouse = mouseReport(remainder);
+            if (mouse === "incomplete") incomplete = true;
+            else if (mouse) {
+              event = { type: "mouse", ...mouse.event };
+              length = mouse.length;
+            }
           }
         }
       }
