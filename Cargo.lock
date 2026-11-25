@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "rucan-agent"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "nix",
  "portable-pty",

@@ -1,16 +1,7 @@
-import { posix } from "node:path";
 import { connectRemoteAgent } from "../agent/ssh.js";
 import type { SessionClient } from "../protocol/client.js";
+import { workingDirectories } from "../terminal/working-directories.js";
 import type { NativeWorkspace } from "../terminal/workspaces.js";
-
-function absolutePath(value: unknown): string | undefined {
-  return typeof value === "string" &&
-    value.length <= 4096 &&
-    posix.isAbsolute(value) &&
-    !/\p{Cc}/u.test(value)
-    ? value
-    : undefined;
-}
 
 export async function workspaceDirectory(
   client: SessionClient,
@@ -23,19 +14,7 @@ export async function workspaceDirectory(
   canEdit: boolean;
 }> {
   if (!workspace) throw new Error("Select a workspace before browsing files.");
-  let path: string | undefined;
-  let reported: string | undefined;
-  if (client.supportsWorkspaceCwd) {
-    const reply = await client.request({
-      type: "workspace-cwd",
-      session: workspace.id,
-    });
-    if (typeof reply !== "object" || reply === null)
-      throw new Error("Invalid workspace directory response");
-    path = "path" in reply ? absolutePath(reply.path) : undefined;
-    reported =
-      "reportedPath" in reply ? absolutePath(reply.reportedPath) : undefined;
-  }
+  const { path, reported } = await workingDirectories(client, workspace.id);
   if (workspace.sshTarget) {
     if (originHost)
       throw new Error(

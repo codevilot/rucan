@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9
+
+- Added a plus button to each workspace row that opens a new session from that row's current directory.
+- Preserved the destination and reported working directory when opening another session from an SSH tab.
+
 ## 0.1.8
 
 - Added sidebar controls to open a session in the selected context and toggle background pinning.

@@ -110,6 +110,7 @@ export async function createWorkspace(
   layout: Geometry,
   host?: string,
   current?: NativeWorkspace,
+  directory?: string,
 ): Promise<NativeWorkspace> {
   const configured =
     current &&
@@ -122,7 +123,7 @@ export async function createWorkspace(
     await client.request({
       type: "create",
       name: workspace.name,
-      cwd: current?.cwd ?? workspace.cwd,
+      cwd: directory ?? current?.cwd ?? workspace.cwd,
       command: workspace.command,
       args: [],
       rows: layout.terminalRows,
