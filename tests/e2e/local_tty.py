@@ -63,7 +63,9 @@ def run():
         config_dir.mkdir(mode=0o700)
         project = path / "project"
         project.mkdir()
-        (project / "README.md").write_text("RUCAN-FILE-PREVIEW\n")
+        (project / "outside.txt").write_text("Outside the selected directory\n")
+        (project / "scoped").mkdir()
+        (project / "scoped" / "README.md").write_text("RUCAN-FILE-PREVIEW\n")
         (config_dir / "config.yaml").write_text(
             'version: 1\nupdates: {check_on_startup: false}\n'
             f'workspaces: [{{name: tty-test, cwd: "{project}", command: "/bin/sh"}}]\n'
@@ -111,10 +113,13 @@ def exercise(node, env):
         os.write(master, (nested + "\r").encode())
         read_until(master, b"Rucan session commands")
 
+        os.write(master, b"cd scoped && printf 'CWD-%s\\n' ready\r")
+        read_until(master, b"CWD-ready")
         choose_action(master, "Browse files")
         data = read_until(master, b"Esc Palette")
         if b"README.md" not in data:
-            read_until(master, b"README.md")
+            data = read_until(master, b"README.md")
+        assert b"outside.txt" not in data
         os.write(master, b"\r")
         read_until(master, b"RUCAN-FILE-PREVIEW")
         os.write(master, b"\x1b")

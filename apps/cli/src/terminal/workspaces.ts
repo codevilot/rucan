@@ -1,7 +1,7 @@
 import type { Config, WorkspaceConfig } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { Geometry } from "./screen.js";
-import { validSshDestination } from "./ssh-destination.js";
+import { validSshDestination } from "../agent/ssh-destination.js";
 
 export interface NativeWorkspace {
   name: string;

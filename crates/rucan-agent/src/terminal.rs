@@ -107,11 +107,14 @@ impl Grid {
 }
 
 /// Replies go back to the child PTY. Escape requests never reach the outer terminal.
-pub(crate) struct TerminalReplies(pub crate::session::PtyInput);
+pub(crate) struct TerminalReplies {
+    pub input: crate::session::PtyInput,
+    pub reported_directory: Option<String>,
+}
 
 impl TerminalReplies {
     fn send(&self, data: Vec<u8>) {
-        if let Ok(input) = self.0.lock()
+        if let Ok(input) = self.input.lock()
             && let Some(input) = input.as_ref()
         {
             let _ = input.try_send(data);
@@ -164,6 +167,10 @@ impl vt100::Callbacks for TerminalReplies {
     }
 
     fn unhandled_osc(&mut self, _: &mut Screen, params: &[&[u8]]) {
+        if params.first() == Some(&b"7".as_slice()) {
+            self.reported_directory = crate::working_directory::osc_directory(params);
+            return;
+        }
         let response: &[u8] = match params {
             [b"10", b"?"] => b"\x1b]10;rgb:ffff/ffff/ffff\x1b\\",
             [b"11", b"?"] => b"\x1b]11;rgb:0000/0000/0000\x1b\\",

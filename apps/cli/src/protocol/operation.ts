@@ -13,6 +13,7 @@ export type Operation =
       rows: number;
       cols: number;
     }
+  | { type: "workspace-cwd"; session: string }
   | { type: "fs-list"; path: string; exclusions: string[] }
   | { type: "fs-preview"; path: string }
   | {

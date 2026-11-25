@@ -14,6 +14,8 @@ The CLI loads configuration and renders local and remote agent sessions from a v
 
 The agent retains the destination of interactive OpenSSH tabs in their session descriptions. The CLI uses it to start a separate SSH connection when the user opens a new session from that tab.
 
+The CLI resolves the selected session's working directory before opening the file explorer. The agent looks up an active PTY child's directory on its host and retains the latest OSC 7 path reported by the terminal.
+
 | Boundary                                             | Owner                   |
 | ---------------------------------------------------- | ----------------------- |
 | Config defaults, parsing and validation              | CLI config module       |

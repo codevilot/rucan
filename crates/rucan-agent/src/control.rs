@@ -185,6 +185,7 @@ impl Registry {
             Operation::Watch { .. }
             | Operation::Shutdown { .. }
             | Operation::FsList { .. }
+            | Operation::WorkspaceCwd { .. }
             | Operation::FsPreview { .. }
             | Operation::TmuxList
             | Operation::TmuxOpen { .. } => {
@@ -302,6 +303,7 @@ impl Registry {
             | Operation::Watch { .. }
             | Operation::Shutdown { .. }
             | Operation::FsList { .. }
+            | Operation::WorkspaceCwd { .. }
             | Operation::FsPreview { .. }
             | Operation::TmuxList
             | Operation::TmuxOpen { .. } => {

@@ -4,6 +4,7 @@
 
 - Added sidebar controls to open a session in the selected context and toggle background pinning.
 - Reused the SSH destination when opening a session from an interactive SSH tab.
+- Started file browsing in the selected terminal's working directory on its host.
 
 ## 0.1.7
 

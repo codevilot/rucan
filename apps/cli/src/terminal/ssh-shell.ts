@@ -1,7 +1,7 @@
 import type { Config } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { Geometry } from "./screen.js";
-import { validSshDestination } from "./ssh-destination.js";
+import { validSshDestination } from "../agent/ssh-destination.js";
 import { decodeWorkspace, type NativeWorkspace } from "./workspaces.js";
 
 export async function openSshShell(

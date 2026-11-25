@@ -11,3 +11,4 @@ pub mod session;
 mod terminal;
 mod tmux;
 pub mod transport;
+mod working_directory;

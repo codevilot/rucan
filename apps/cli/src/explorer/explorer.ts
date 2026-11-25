@@ -60,6 +60,7 @@ const cacheTtl = 5000;
 
 export class Explorer {
   #connector: () => Promise<SessionClient>;
+  #canEdit = true;
   #exclusions: string[];
   #onChange: () => void;
   #connection: SessionClient | undefined;
@@ -82,7 +83,15 @@ export class Explorer {
     this.#onChange = onChange;
   }
 
-  enter(path: string): void {
+  enter(
+    path: string,
+    connector: () => Promise<SessionClient>,
+    canEdit: boolean,
+  ): void {
+    this.leave();
+    this.#connector = connector;
+    this.#canEdit = canEdit;
+    this.#cache.clear();
     this.#root = path;
     this.#index = 0;
     this.#open.clear();
@@ -118,6 +127,10 @@ export class Explorer {
     return entry?.kind === "file" ? entry.path : undefined;
   }
 
+  get canEdit(): boolean {
+    return this.#canEdit;
+  }
+
   activate(): void {
     const entry = this.#visible()[this.#index];
     if (!entry) return;
@@ -149,7 +162,11 @@ export class Explorer {
     }
   }
 
-  layout(height: number): { sidebar: string[]; content: string[] } {
+  layout(height: number): {
+    sidebar: string[];
+    content: string[];
+    canEdit: boolean;
+  } {
     const rows = this.#visible();
     const first = Math.max(0, this.#index - Math.max(0, height - 5));
     const entries = rows
@@ -171,6 +188,7 @@ export class Explorer {
     return {
       sidebar: ["EXPLORER", this.#root, ...entries],
       content: [this.#status, ...this.#preview],
+      canEdit: this.#canEdit,
     };
   }
 

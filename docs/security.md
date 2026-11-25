@@ -11,3 +11,5 @@ The interactive SSH tab validates the destination and passes it to OpenSSH as a 
 Session descriptions expose the destination of interactive OpenSSH tabs for reuse by the sidebar. Authentication stays inside OpenSSH.
 
 See [SECURITY.md](../SECURITY.md) for reporting guidance.
+
+Working-directory lookups use the selected PTY child and never send commands into the foreground terminal. OSC 7 reports are treated as untrusted paths. They can select a folder on the already selected SSH destination and are never rendered as control sequences.

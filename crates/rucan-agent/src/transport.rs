@@ -75,7 +75,7 @@ fn negotiate(payload: &[u8]) -> Reply {
         Reply::Welcome {
             version: VERSION,
             max_frame_bytes: MAX_FRAME_BYTES,
-            capabilities: ["native-session"]
+            capabilities: ["native-session", "workspace-cwd"]
                 .into_iter()
                 .filter(|capability| names.iter().any(|name| name.as_str() == *capability))
                 .collect(),
@@ -228,6 +228,33 @@ impl Drop for Connection {
 }
 
 impl Connection {
+    async fn workspace_cwd(&self, id: &str) -> Result<Value, String> {
+        let _permit = self
+            .filesystem_slots
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| "agent filesystem request limit reached")?;
+        let session = self.registry.session(id)?;
+        let path = match session.pid() {
+            Some(pid)
+                if matches!(
+                    session.process_state(),
+                    crate::session::ProcessState::Running
+                ) =>
+            {
+                crate::working_directory::process_directory(pid).await
+            }
+            _ => None,
+        };
+        if !matches!(
+            session.process_state(),
+            crate::session::ProcessState::Running
+        ) {
+            return Ok(json!({"path": null, "reportedPath": null}));
+        }
+        Ok(json!({"path": path, "reportedPath": session.reported_directory()}))
+    }
+
     async fn handle(&mut self, mut socket: UnixStream) -> io::Result<()> {
         if !timeout(Duration::from_secs(5), handshake(&mut socket)).await?? {
             return Ok(());
@@ -331,6 +358,7 @@ impl Connection {
                             })
                         }
                         Operation::Watch { session, after } => self.watch(&session, after).await,
+                        Operation::WorkspaceCwd { session } => self.workspace_cwd(&session).await,
                         Operation::FsList { path, exclusions } => {
                             self.filesystem(move || filesystem::list(&path, &exclusions))
                                 .await

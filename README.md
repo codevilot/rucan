@@ -34,6 +34,8 @@ Click **+** in the sidebar to open a new session in the selected workspace's env
 
 Drag the sidebar divider to resize it. Search the palette for **Hide sidebar** or **Show sidebar**.
 
+**Browse files** opens the selected session's current directory on its host. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.
+
 Inside a managed shell, run `rucan` to see session commands. Use `npx rucan@latest` if you run Rucan through npm without a global installation.
 
 `pnpm dev config` validates the configuration and prints its path. The npm package installs the `rucan` command. After the first release:

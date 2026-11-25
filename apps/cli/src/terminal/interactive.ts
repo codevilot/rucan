@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import { availableUpdate, skipUpdate } from "../release/updates.js";
 import { restartAfterUpdate } from "../release/restart.js";
 import { Explorer } from "../explorer/explorer.js";
+import { workspaceDirectory } from "../explorer/workspace-directory.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
 import { connectLocalAgent } from "../agent/local.js";
@@ -469,8 +470,13 @@ class InteractiveWorkspace {
       else if (key === "\x1b[B") this.#explorer.move(1);
       else if (key === "\r") this.#explorer.activate();
       else if (key === "r") this.#explorer.refresh();
-      else if (key === "o" && this.#explorer.file)
+      else if (key === "o" && this.#explorer.file) {
+        if (!this.#explorer.canEdit)
+          throw new Error(
+            "Open an agent-backed remote workspace to edit this file.",
+          );
         await this.#openEditor(this.#explorer.file);
+      }
     } else if (this.#mode === "hosts") {
       if (key === "\x1b") {
         this.#hostTrial++;
@@ -677,8 +683,18 @@ class InteractiveWorkspace {
       this.#tmuxIndex = 0;
       this.#mode = "tmux";
     } else if (key === "e") {
+      const directory = await workspaceDirectory(
+        this.#client,
+        this.#selected,
+        this.#connect,
+        this.#host,
+      );
       this.#mode = "explorer";
-      this.#explorer.enter(this.#selected?.cwd ?? "~");
+      this.#explorer.enter(
+        directory.path,
+        directory.connect,
+        directory.canEdit,
+      );
     } else if (key === "n") {
       const workspace = await this.#new();
       this.#mode = "terminal";
