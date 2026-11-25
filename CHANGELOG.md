@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Showed Option+Space on macOS and Alt+Space on Linux in the command palette shortcut hint.
+
 ## 0.1.4
 
 - Offered to update, continue, or skip a release at startup.

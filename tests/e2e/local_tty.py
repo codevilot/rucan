@@ -9,6 +9,7 @@ import shlex
 import signal
 import struct
 import subprocess
+import sys
 import tempfile
 import termios
 import time
@@ -145,6 +146,7 @@ def exercise(node, env):
 
 
 def exercise_session_exit(node, env):
+    palette_hint = b"Option+Space Search" if sys.platform == "darwin" else b"Alt+Space Search"
     def new(name):
         session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
         subprocess.check_output(node + ["rename", session["id"], name], env=env)
@@ -182,11 +184,11 @@ def exercise_session_exit(node, env):
         frame = read_until(master, "ssh▏".encode())
         assert "›  SSH connect".encode() in frame
         os.write(master, b"\x1b")
-        read_until(master, b"Alt+Space Search")
+        read_until(master, palette_hint)
         os.write(master, b"\x1b[24~ ")
         read_until(master, b"Rucan commands")
         os.write(master, b"\x1b")
-        read_until(master, b"Alt+Space Search")
+        read_until(master, palette_hint)
         os.write(master, b"\x1b[<0;3;23M")
         read_until(master, b"Enter Connect")
         os.write(master, b"ops@192.0.2.7")
