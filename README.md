@@ -32,6 +32,8 @@ The numbered workspace list contains running sessions. When the selected session
 
 Click **+** next to a workspace to open another session at that workspace's current directory. For an interactive SSH tab, it connects to the same destination and uses the reported directory when available. Use **SSH connect** in the command palette to enter a new IP address, alias, or `user@host`. Click **BG** to pin or unpin the selected managed session.
 
+Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
+
 Drag the sidebar divider to resize it. Search the palette for **Hide sidebar** or **Show sidebar**.
 
 **Browse files** opens the selected session's current directory on its host. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.

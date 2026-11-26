@@ -11,7 +11,7 @@ function withControl(label: string, width: number, control: string): string {
 export function workspaceSidebar(
   lines: readonly string[],
   width: number,
-  count: number,
+  workspaces: readonly NativeWorkspace[],
   selected?: NativeWorkspace,
 ): string[] {
   const background =
@@ -20,12 +20,18 @@ export function workspaceSidebar(
     withControl(
       lines[0] ?? "",
       width,
-      `BG${background}${count === 0 ? " +" : "  "}`,
+      `BG${background}${workspaces.length === 0 ? " +" : "  "}`,
     ),
     ...lines
       .slice(1)
       .map((label, index) =>
-        index < count ? withControl(label, width, "+") : label,
+        index < workspaces.length
+          ? withControl(
+              label,
+              width,
+              workspaces[index]?.ownership === "managed" ? "+ ×" : "+  ",
+            )
+          : label,
       ),
   ];
 }
@@ -34,18 +40,21 @@ export function sidebarActionAt(
   row: number,
   col: number,
   width: number,
-  count: number,
+  workspaces: readonly NativeWorkspace[],
 ):
   | { type: "new"; workspaceIndex?: number }
   | { type: "background" }
+  | { type: "close"; workspace: NativeWorkspace }
   | undefined {
   if (width < 7) return undefined;
   if (row === 2) {
-    if (count === 0 && col === width - 1) return { type: "new" };
+    if (workspaces.length === 0 && col === width - 1) return { type: "new" };
     if (col >= width - 5 && col <= width - 3) return { type: "background" };
   }
   const workspaceIndex = row - 3;
-  if (col === width - 1 && workspaceIndex >= 0 && workspaceIndex < count)
-    return { type: "new", workspaceIndex };
+  const workspace = workspaces[workspaceIndex];
+  if (workspace && col === width - 3) return { type: "new", workspaceIndex };
+  if (workspace?.ownership === "managed" && col === width - 1)
+    return { type: "close", workspace };
   return undefined;
 }

@@ -1,3 +1,4 @@
+import { closeDialogLines } from "./close-dialog.js";
 import type { Config } from "../config/schema.js";
 import type { Explorer } from "../explorer/explorer.js";
 import { version } from "../release/version.js";
@@ -28,6 +29,7 @@ interface WorkspaceScreenState {
   name: string;
   offset: number;
   sshTarget: string;
+  closeTarget: NativeWorkspace | undefined;
   paletteLines: readonly string[] | undefined;
 }
 
@@ -101,7 +103,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       workspaceSidebar(
         workspaceLabels(state.config, state.workspaces, selected?.id),
         state.layout.sidebar,
-        state.workspaces.length,
+        state.workspaces,
         selected,
       ),
     ...(selection && state.layout.sidebar === 0
@@ -129,13 +131,16 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
                   "Enter an IP, SSH alias, or user@host.",
                 ],
               }
-            : state.mode === "palette" && state.paletteLines
-              ? { paletteLines: state.paletteLines }
-              : {}),
+            : state.mode === "close" && state.closeTarget
+              ? { paletteLines: closeDialogLines(state.closeTarget.name) }
+              : state.mode === "palette" && state.paletteLines
+                ? { paletteLines: state.paletteLines }
+                : {}),
     snapshot:
       (selection && state.layout.sidebar === 0) ||
       explorer ||
       state.mode === "palette" ||
+      state.mode === "close" ||
       state.mode === "ssh" ||
       state.mode === "exit"
         ? undefined

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- Added a close button to managed workspace rows with a confirmation dialog before stopping the session.
+
 ## 0.1.9
 
 - Added a plus button to each workspace row that opens a new session from that row's current directory.
