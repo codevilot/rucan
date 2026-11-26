@@ -6,7 +6,7 @@ import type { Geometry, ScreenModel } from "./screen.js";
 import { workspaceSidebar } from "./sidebar-actions.js";
 import type { TerminalSnapshot } from "./snapshot.js";
 import type { TmuxTarget } from "./tmux.js";
-import { exitLines, footerFor, selectionLines, type Mode } from "./view.js";
+import { footerFor, selectionLines, type Mode } from "./view.js";
 import { workspaceLabels, type NativeWorkspace } from "./workspaces.js";
 
 interface WorkspaceScreenState {
@@ -94,10 +94,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
           : "No active workspace"),
       healthy: running && !state.status,
     },
-    footer:
-      state.update && state.mode !== "exit"
-        ? `${footer} · Update v${state.update}`
-        : footer,
+    footer: state.update ? `${footer} · Update v${state.update}` : footer,
     resizingSidebar: state.resizingSidebar,
     sidebarLines:
       selection ??
@@ -123,28 +120,25 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
                   ]
                 : explorer.content,
           }
-        : state.mode === "exit"
-          ? { contentLines: exitLines(state.host) }
-          : state.mode === "ssh"
-            ? {
-                contentLines: [
-                  "SSH connect",
-                  `Host  ${state.sshTarget}▏`,
-                  "Enter an IP, SSH alias, or user@host.",
-                ],
-              }
-            : state.mode === "close" && state.closeTarget
-              ? { paletteLines: closeDialogLines(state.closeTarget.name) }
-              : state.mode === "palette" && state.paletteLines
-                ? { paletteLines: state.paletteLines }
-                : {}),
+        : state.mode === "ssh"
+          ? {
+              contentLines: [
+                "SSH connect",
+                `Host  ${state.sshTarget}▏`,
+                "Enter an IP, SSH alias, or user@host.",
+              ],
+            }
+          : state.mode === "close" && state.closeTarget
+            ? { paletteLines: closeDialogLines(state.closeTarget.name) }
+            : state.mode === "palette" && state.paletteLines
+              ? { paletteLines: state.paletteLines }
+              : {}),
     snapshot:
       (selection && state.layout.sidebar === 0) ||
       explorer ||
       state.mode === "palette" ||
       state.mode === "close" ||
-      state.mode === "ssh" ||
-      state.mode === "exit"
+      state.mode === "ssh"
         ? undefined
         : state.mode === "history"
           ? state.history

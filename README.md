@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-Type `exit` at the shell prompt to close the current shell. Open the command palette with Option+Space on macOS or Alt+Space on Linux. You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to choose an exit policy. The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
+Type `exit` at the shell prompt to close the current shell. Open the command palette with Option+Space on macOS or Alt+Space on Linux. You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to exit immediately using `defaults.on_exit` (keep all sessions by default). The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
 
 ```yaml
 version: 1
@@ -28,13 +28,13 @@ workspaces:
     persistence: persistent
 ```
 
-The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. Use the sidebar or search the palette by workspace name or number to switch sessions.
+The numbered workspace list contains running sessions. When the selected session exits, Rucan opens the next running session. Closing the last session exits the full-screen UI and restores the terminal screen from before launch. Use the sidebar or search the palette by workspace name or number to switch sessions.
 
 Click **+** next to a workspace to open another session at that workspace's current directory. For an interactive SSH tab, it connects to the same destination and uses the reported directory when available. Click **BG** to pin or unpin the selected managed session.
 
 Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
 
-Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
+Click the pencil (✎) beside a session name to rename it. Press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
 
 **Browse files** opens the selected session's current directory on its host. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.13
+
+- Restore the original terminal screen when the last session exits.
+- Rename sessions from the sidebar using the pencil icon.
+- Quit immediately from the command palette using the configured exit policy.
+
 ## 0.1.12
 
 - Highlight the sidebar divider and show a horizontal resize pointer in compatible terminals while dragging.
