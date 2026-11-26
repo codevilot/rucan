@@ -17,6 +17,7 @@ struct Entry {
     cwd: String,
     tmux_id: Option<String>,
     ssh_target: Option<String>,
+    ssh_reconnect: bool,
     native: Arc<NativeSession>,
     controller: Option<Uuid>,
 }
@@ -63,6 +64,7 @@ fn describe(id: Uuid, entry: &Entry) -> Value {
         "ownership": if entry.tmux_id.is_some() { "external" } else { "managed" },
         "tmuxId": entry.tmux_id,
         "sshTarget": entry.ssh_target,
+        "sshReconnect": entry.ssh_reconnect,
         "pid": entry.native.pid(),
         "persistent": entry.native.persistence() == Persistence::Persistent,
         "state": describe_process(&entry.native.process_state()),
@@ -359,7 +361,9 @@ fn spawn(
     }
     let cwd = resolve_path(&cwd)?;
     let id = Uuid::new_v4();
-    let ssh_target = ssh_target(&command, &args);
+    let reconnect_target = ssh_reconnect_target(&command, &args);
+    let ssh_reconnect = reconnect_target.is_some();
+    let ssh_target = reconnect_target.or_else(|| ssh_target(&command, &args));
     let mut program = CommandBuilder::new(command);
     program.args(args);
     program.cwd(&cwd);
@@ -377,6 +381,7 @@ fn spawn(
         name,
         tmux_id,
         ssh_target,
+        ssh_reconnect,
         cwd: cwd
             .into_os_string()
             .into_string()
@@ -432,12 +437,38 @@ fn ssh_target(command: &str, args: &[String]) -> Option<String> {
         }
         _ => return None,
     };
-    ((1..=128).contains(&target.len())
+    valid_ssh_target(target).then(|| target.clone())
+}
+
+fn ssh_reconnect_target(command: &str, args: &[String]) -> Option<String> {
+    if Path::new(command).file_name()?.to_str()? != "node" {
+        return None;
+    }
+    let args = if args
+        .first()
+        .is_some_and(|arg| arg == "--experimental-strip-types")
+    {
+        &args[1..]
+    } else {
+        args
+    };
+    let [runner, target, ..] = args else {
+        return None;
+    };
+    let runner = Path::new(runner);
+    (runner.is_absolute()
+        && ["ssh-reconnect-runner.js", "ssh-reconnect-runner.ts"]
+            .contains(&runner.file_name()?.to_str()?)
+        && valid_ssh_target(target))
+    .then(|| target.clone())
+}
+
+fn valid_ssh_target(target: &str) -> bool {
+    (1..=128).contains(&target.len())
         && !target.starts_with('-')
         && target
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || b"_.:@-".contains(&byte)))
-    .then(|| target.clone())
+            .all(|byte| byte.is_ascii_alphanumeric() || b"_.:@-".contains(&byte))
 }
 fn validate_name(name: &str) -> Result<(), String> {
     if name.trim().is_empty() || name.len() > 128 || name.chars().any(char::is_control) {

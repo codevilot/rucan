@@ -27,14 +27,16 @@ async function foregroundGroup(pid: number): Promise<number | undefined> {
 
 async function linuxArgs(pid: number): Promise<string[]> {
   const root = `/proc/${pid}`;
-  if (basename(await readlink(`${root}/exe`)) !== "ssh") return [];
+  const executable = basename(await readlink(`${root}/exe`));
+  if (executable !== "ssh" && executable !== "node") return [];
   const file = await open(`${root}/cmdline`, "r");
   try {
     const buffer = Buffer.alloc(maxCommand + 1);
     const { bytesRead } = await file.read(buffer);
-    if (bytesRead > maxCommand || buffer[bytesRead - 1] !== 0) return ["ssh"];
+    if (bytesRead > maxCommand || buffer[bytesRead - 1] !== 0)
+      return [executable];
     return [
-      "ssh",
+      executable,
       ...buffer
         .subarray(0, bytesRead - 1)
         .toString("utf8")
@@ -67,6 +69,18 @@ export async function localForegroundSsh(
           ).split(/\s+/u)
         : await linuxArgs(group);
     const [command, executable, ...args] = fields;
+    if (
+      command === "node" &&
+      group === pid &&
+      (await foregroundGroup(pid)) === group
+    ) {
+      const runner = args.findIndex((arg) =>
+        /(?:^|\/)ssh-reconnect-runner\.[jt]s$/u.test(arg),
+      );
+      const target = runner >= 0 ? args[runner + 1] : undefined;
+      if (target && validSshDestination(target))
+        return { type: "destination", target, reconnect: true };
+    }
     if (command !== "ssh" || (await foregroundGroup(pid)) !== group) return;
     const target =
       args.length === 1

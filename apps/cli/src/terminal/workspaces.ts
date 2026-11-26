@@ -12,6 +12,7 @@ export interface NativeWorkspace {
   persistent: boolean;
   running: boolean;
   sshTarget?: string;
+  sshReconnect?: boolean;
   pid?: number;
 }
 
@@ -52,6 +53,10 @@ export function decodeWorkspace(raw: unknown): NativeWorkspace {
     cwd: workspace.cwd,
     persistent: workspace.persistent,
     running: workspace.state.type === "running",
+    ...("sshReconnect" in workspace &&
+    typeof workspace.sshReconnect === "boolean"
+      ? { sshReconnect: workspace.sshReconnect }
+      : {}),
     ...("pid" in workspace &&
     typeof workspace.pid === "number" &&
     Number.isSafeInteger(workspace.pid) &&

@@ -125,6 +125,7 @@ class InteractiveWorkspace {
   #renameDraft: RenameDraft | undefined;
   #palette: CommandPalette | undefined;
   #sshTarget = "";
+  #sshReconnect = false;
   #tmux: TmuxTarget[] = [];
   #tmuxIndex = 0;
   #workspaces: NativeWorkspace[] = [];
@@ -268,6 +269,7 @@ class InteractiveWorkspace {
       !current.sshTarget &&
       !this.#host &&
       (!directories?.supportsForegroundSsh ||
+        (current.sshReconnect === undefined && !directories.foregroundSsh) ||
         directories.foregroundSsh?.type === "unsupported")
         ? ((await localForegroundSsh(current.pid)) ??
           directories?.foregroundSsh)
@@ -288,6 +290,9 @@ class InteractiveWorkspace {
           target,
           current?.sshTarget ? directories?.reported : undefined,
           !this.#host,
+          current?.sshReconnect === true ||
+            (foreground?.type === "destination" &&
+              foreground.reconnect === true),
         )
       : await createWorkspace(
           this.#client,
@@ -988,7 +993,8 @@ class InteractiveWorkspace {
       const workspace = await this.#new();
       this.#mode = "terminal";
       await this.#select(workspace);
-    } else if (key === "c") {
+    } else if (key === "c" || key === "C") {
+      this.#sshReconnect = key === "C";
       this.#sshTarget = "";
       this.#mode = "ssh";
     } else if (key === "h") {
@@ -1062,6 +1068,7 @@ class InteractiveWorkspace {
         this.#sshTarget,
         undefined,
         !this.#host,
+        this.#sshReconnect,
       );
       this.#workspaces.push(workspace);
       this.#mode = "terminal";
@@ -1112,6 +1119,7 @@ class InteractiveWorkspace {
       renameName: this.#renameDraft?.name,
       offset: this.#offset,
       sshTarget: this.#sshTarget,
+      sshReconnect: this.#sshReconnect,
       closeTarget: this.#closeTarget,
       paletteLines:
         this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,

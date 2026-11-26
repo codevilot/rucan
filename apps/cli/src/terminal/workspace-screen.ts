@@ -31,6 +31,7 @@ interface WorkspaceScreenState {
   renameName: string | undefined;
   offset: number;
   sshTarget: string;
+  sshReconnect: boolean;
   closeTarget: NativeWorkspace | undefined;
   paletteLines: readonly string[] | undefined;
 }
@@ -124,7 +125,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
         : state.mode === "ssh"
           ? {
               contentLines: [
-                "SSH connect",
+                state.sshReconnect ? "SSH connect and resume" : "SSH connect",
                 `Host  ${state.sshTarget}▏`,
                 "Enter an IP, SSH alias, or user@host.",
               ],
