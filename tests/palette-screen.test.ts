@@ -150,3 +150,28 @@ it.each([
   expect(palette.lines(22)).toContain("   No matching actions");
   expect(palette.input("\r")).toBeUndefined();
 });
+
+it("resets a resize pointer before leaving the alternate screen", () => {
+  const chunks: string[] = [];
+  const output = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      chunks.push(chunk.toString("utf8"));
+      callback();
+    },
+  });
+  const screen = new Screen(output);
+  screen.enter();
+  screen.draw({
+    layout: geometry(24, 100),
+    header: "Rucan",
+    footer: "Palette",
+    sidebarLines: ["WORKSPACES"],
+    resizingSidebar: true,
+    snapshot: undefined,
+    showCursor: false,
+  });
+  expect(chunks.join("")).toContain("\x1b]22;ew-resize\x1b\\");
+  screen.leave();
+  expect(chunks.at(-1)).toMatch(/^\x1b\]22;\x1b\\.*\x1b\[\?1049l/u);
+  output.destroy();
+});

@@ -34,7 +34,7 @@ Click **+** next to a workspace to open another session at that workspace's curr
 
 Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
 
-Drag the sidebar divider to resize it. Use the palette to hide the sidebar, show it, or move it to the other side.
+Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
 
 **Browse files** opens the selected session's current directory on its host. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.
 

@@ -14,8 +14,16 @@ export class SidebarLayout {
   #dragging = false;
   side: "left" | "right" = "left";
 
-  flip(): void {
+  get dragging(): boolean {
+    return this.#dragging;
+  }
+
+  cancelDrag(): void {
     this.#dragging = false;
+  }
+
+  flip(): void {
+    this.cancelDrag();
     this.side = this.side === "left" ? "right" : "left";
   }
 
@@ -24,7 +32,7 @@ export class SidebarLayout {
   }
 
   toggle(): void {
-    this.#dragging = false;
+    this.cancelDrag();
     this.#collapsed = !this.#collapsed;
   }
 

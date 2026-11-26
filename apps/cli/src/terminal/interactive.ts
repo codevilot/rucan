@@ -161,6 +161,7 @@ class InteractiveWorkspace {
           this.#sidebar.preferred,
           this.#sidebar.side,
         );
+        if (!this.#layout.sidebar) this.#sidebar.cancelDrag();
         this.#draw();
         await this.#resize();
       });
@@ -399,6 +400,7 @@ class InteractiveWorkspace {
       return;
     }
     if (event.type === "palette") {
+      this.#sidebar.cancelDrag();
       if (this.#mode === "palette") this.#mode = "terminal";
       else {
         if (this.#mode === "explorer") this.#explorer.leave();
@@ -862,6 +864,7 @@ class InteractiveWorkspace {
         status: this.#status,
         update: this.#update,
         layout: this.#layout,
+        resizingSidebar: this.#sidebar.dragging,
         selected: this.#selected,
         workspaces: this.#workspaces,
         snapshot: this.#snapshot,
