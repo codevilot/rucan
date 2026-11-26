@@ -48,14 +48,17 @@ def run():
         env["RUCAN_AGENT_BINARY"] = str(Path("target/debug/rucan-agent").resolve())
         bin_dir = path / "bin"
         bin_dir.mkdir()
+        ssh_login = bin_dir / "ssh-login"
+        ssh_login.write_text('#!/bin/sh\nprintf "SSH-CWD-ok %s\\n" "$$"\nread -r input\n')
+        ssh_login.chmod(0o700)
         ssh_fixture = bin_dir / "ssh"
         ssh_fixture.write_text(
             '#!/bin/sh\n'
             'case "$*" in\n'
-            '  "-o StrictHostKeyChecking=ask -- ops@192.0.2.7")\n'
+            '  "ops@192.0.2.7" | "-o StrictHostKeyChecking=ask -- ops@192.0.2.7")\n'
             '    printf "\\033]7;file://host/srv/QA%%20folder\\007SSH-ARGV-ok %s\\n" "$$";;\n'
             '  "-o StrictHostKeyChecking=ask -t -- ops@192.0.2.7 sh -c "*"/srv/QA folder"*)\n'
-            '    printf "SSH-CWD-ok %s\\n" "$$";;\n'
+            '    exec env SHELL="${0%/*}/ssh-login" /bin/sh -c "$6";;\n'
             '  *) exit 2;;\n'
             'esac\n'
             'read -r input\n'
@@ -200,15 +203,17 @@ def exercise_session_exit(node, env):
         assert "next-shell ✎".encode() in frame
         assert "[+] [×]".encode() in frame
         os.write(master, b"\x1b[<0;17;5M\x1b[<0;17;5m")
-        read_until(master, b"Enter Save")
+        frame = read_until(master, b"Enter Save")
+        assert b"Rename workspace" in frame and "next-shell▏".encode() in frame
         os.write(master, "다음".encode())
         read_until(master, "다음▏".encode())
-        os.write(master, b"\r")
+        os.write(master, b"\x1b[<0;45;9M\x1b[<0;45;9m")
         read_until(master, " 3 ◇ 다음 ✎".encode())
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         assert any(item["name"] == "다음" for item in sessions)
         os.write(master, b"\x1b[<0;11;5M\x1b[<0;11;5m")
-        read_until(master, b"Enter Save")
+        frame = read_until(master, b"Enter Save")
+        assert b"Rename workspace" in frame and "다음▏".encode() in frame
         os.write(master, b"next-shell")
         read_until(master, "next-shell▏".encode())
         os.write(master, b"\r")
@@ -260,7 +265,7 @@ def exercise_session_exit(node, env):
         os.write(master, b"\x1b")
         read_until(master, PALETTE_HINT)
         subprocess.check_output(
-            node + ["new", "ssh", "-o", "StrictHostKeyChecking=ask", "--", "ops@192.0.2.7"],
+            node + ["new", "ssh", "ops@192.0.2.7"],
             env=env,
         )
         read_until(master, " 2 ◇ ssh".encode())

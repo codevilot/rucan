@@ -15,7 +15,6 @@ export const paletteShortcut =
 
 export function footerFor(
   mode: Mode,
-  name: string,
   scrollback: number,
   canEdit = true,
 ): string {
@@ -23,7 +22,7 @@ export function footerFor(
     case "hosts":
       return "Esc Palette · ↑↓ Select host · Enter Connect";
     case "rename":
-      return `Esc Cancel · Enter Save · Name ${name}▏`;
+      return "Esc Cancel · Enter Save";
     case "history":
       return `Esc Palette · ↑↓ Scroll · History ${scrollback} lines back`;
     case "update":

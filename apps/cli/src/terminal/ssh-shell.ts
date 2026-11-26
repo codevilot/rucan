@@ -21,7 +21,7 @@ export async function openSshShell(
   if (directory) {
     const reported = directory.split("/").map(encodeURIComponent).join("/");
     const script =
-      `cd ${quote(directory)} && printf '\\033]7;file://%s\\007' ${quote(reported)} && ` +
+      `if cd ${quote(directory)}; then printf '\\033]7;file://%s\\007' ${quote(reported)}; fi; ` +
       'exec "${SHELL:-/bin/sh}" -i';
     const command = `sh -c ${quote(script)}`;
     if (Buffer.byteLength(command) > 4096)
