@@ -7,7 +7,7 @@ export function terminalMouse(
   layout: Geometry,
   grid: TerminalSnapshot["grid"],
 ): Buffer | undefined {
-  const col = event.col - layout.sidebar;
+  const col = event.col - layout.contentStart;
   const row = event.row - 1;
   if (
     col < 1 ||

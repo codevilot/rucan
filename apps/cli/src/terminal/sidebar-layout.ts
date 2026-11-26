@@ -12,6 +12,12 @@ export class SidebarLayout {
   #preferred: number | undefined;
   #collapsed = false;
   #dragging = false;
+  side: "left" | "right" = "left";
+
+  flip(): void {
+    this.#dragging = false;
+    this.side = this.side === "left" ? "right" : "left";
+  }
 
   get preferred(): number | undefined {
     return this.#collapsed ? 0 : this.#preferred;
@@ -26,6 +32,7 @@ export class SidebarLayout {
     event: MouseEvent,
     sidebar: number,
     rows: number,
+    cols: number,
   ): "pass" | "paint" | "resize" {
     if (this.#dragging) {
       if (event.release) {
@@ -33,13 +40,14 @@ export class SidebarLayout {
         return "resize";
       }
       if ((event.button & 35) === 32) {
-        this.#preferred = event.col;
+        this.#preferred =
+          this.side === "left" ? event.col : cols - event.col + 1;
       }
       return "paint";
     }
     if (
       sidebar > 0 &&
-      event.col === sidebar &&
+      event.col === (this.side === "left" ? sidebar : cols - sidebar + 1) &&
       event.row > 1 &&
       event.row < rows &&
       event.button === 0 &&

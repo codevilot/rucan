@@ -159,6 +159,7 @@ class InteractiveWorkspace {
           process.stdout.rows || 24,
           process.stdout.columns || 80,
           this.#sidebar.preferred,
+          this.#sidebar.side,
         );
         this.#draw();
         await this.#resize();
@@ -434,17 +435,22 @@ class InteractiveWorkspace {
         event,
         this.#layout.sidebar,
         this.#layout.rows,
+        this.#layout.cols,
       );
       if (drag !== "pass") {
         this.#applySidebar();
         if (drag === "resize") await this.#resize();
         return;
       }
+      const sidebarCol =
+        this.#layout.sidebarSide === "left"
+          ? event.col
+          : event.col - (this.#layout.cols - this.#layout.sidebar + 1);
       const action =
         !event.release && event.button === 0
           ? sidebarActionAt(
               event.row,
-              event.col,
+              sidebarCol,
               this.#layout.sidebar,
               this.#workspaces,
             )
@@ -470,13 +476,14 @@ class InteractiveWorkspace {
         return;
       }
       if (
-        event.col <= this.#layout.sidebar &&
+        sidebarCol >= 1 &&
+        sidebarCol <= this.#layout.sidebar &&
         event.row >= 3 &&
         !event.release &&
         event.button === 0
       ) {
         const workspace = this.#workspaces[event.row - 3];
-        if (workspace && event.col === 4 && workspace.ownership === "managed")
+        if (workspace && sidebarCol === 4 && workspace.ownership === "managed")
           await this.#pin(workspace);
         else if (workspace) {
           this.#mode = "terminal";
@@ -714,8 +721,9 @@ class InteractiveWorkspace {
       this.#mode = "history";
     } else if (key === "u") {
       await this.#checkForUpdate();
-    } else if (key === "b") {
-      this.#sidebar.toggle();
+    } else if (key === "b" || key === "m") {
+      if (key === "b") this.#sidebar.toggle();
+      else this.#sidebar.flip();
       this.#applySidebar();
       await this.#resize();
       this.#mode = "terminal";
@@ -779,6 +787,7 @@ class InteractiveWorkspace {
       this.#selected?.id,
       this.#update,
       this.#layout.sidebar > 0,
+      this.#sidebar.side,
     );
     this.#mode = "palette";
   }
@@ -788,6 +797,7 @@ class InteractiveWorkspace {
       this.#layout.rows,
       this.#layout.cols,
       this.#sidebar.preferred,
+      this.#sidebar.side,
     );
     this.#draw();
   }

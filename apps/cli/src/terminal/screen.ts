@@ -20,6 +20,8 @@ export interface Geometry {
   rows: number;
   cols: number;
   sidebar: number;
+  sidebarSide: "left" | "right";
+  contentStart: number;
   terminalRows: number;
   terminalCols: number;
 }
@@ -28,6 +30,7 @@ export function geometry(
   rows: number,
   cols: number,
   preferredSidebar?: number,
+  sidebarSide: Geometry["sidebarSide"] = "left",
 ): Geometry {
   const sidebar = sidebarWidth(cols, preferredSidebar);
   const terminalCols = Math.max(1, Math.min(500, cols - sidebar));
@@ -35,7 +38,16 @@ export function geometry(
     1,
     Math.min(200, rows - 2, Math.floor(12000 / terminalCols)),
   );
-  return { rows, cols, sidebar, terminalRows, terminalCols };
+  const contentStart = sidebarSide === "left" ? sidebar : 0;
+  return {
+    rows,
+    cols,
+    sidebar,
+    sidebarSide,
+    contentStart,
+    terminalRows,
+    terminalCols,
+  };
 }
 
 function sgr([flags, fg, bg]: Style): string {
@@ -127,34 +139,33 @@ export class Screen {
     } = model;
     const lines = [renderHeader(header, layout.cols)];
     const paletteTop = paletteBounds(layout).top - 2;
+    const contentWidth = layout.cols - layout.sidebar;
+    const contentEnd = layout.contentStart + contentWidth;
+    const rightSidebar = layout.sidebarSide === "right";
     for (let row = 0; row < layout.rows - 2; row++) {
-      let line = renderSidebar(
+      const sidebar = renderSidebar(
         sidebarLines[row] ?? "",
         layout.sidebar,
         row === 0,
+        rightSidebar,
       );
-      let col = layout.sidebar;
+      let line = rightSidebar ? "" : sidebar;
+      let col = layout.contentStart;
       const paletteLine = paletteLines?.[row - paletteTop];
       if (paletteLine)
-        line += renderPaletteLine(
-          paletteLine,
-          layout.cols - col,
-          row - paletteTop,
-        );
+        line += renderPaletteLine(paletteLine, contentWidth, row - paletteTop);
       else if (contentLines)
-        line += renderPanelLine(
-          contentLines[row] ?? "",
-          layout.cols - col,
-          row,
-        );
+        line += renderPanelLine(contentLines[row] ?? "", contentWidth, row);
       for (const [width, text, style] of snapshot?.grid.lines[row] ?? []) {
-        if (col >= layout.cols) break;
+        if (col >= contentEnd) break;
         line +=
           move(row + 2, col + 1) +
           sgr(style) +
-          fit(text, Math.min(width, layout.cols - col));
+          fit(text, Math.min(width, contentEnd - col));
         col += width;
       }
+      if (rightSidebar && layout.sidebar > 0)
+        line += move(row + 2, contentEnd + 1) + sidebar;
       lines.push(line + reset);
     }
     lines.push(renderFooter(footer, layout.cols));
@@ -206,7 +217,10 @@ export class Screen {
       output +=
         move(
           snapshot.cursor.row + 2,
-          Math.min(layout.cols, layout.sidebar + snapshot.cursor.column + 1),
+          Math.min(
+            layout.cols,
+            layout.contentStart + snapshot.cursor.column + 1,
+          ),
         ) + "\x1b[?25h";
     }
     this.#blocked = !this.#output.write(output);
