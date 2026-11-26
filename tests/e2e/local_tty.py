@@ -26,9 +26,9 @@ def read_until(master, marker, seconds=8):
     return data
 
 
-PALETTE_HINT = b"Command+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
+PALETTE_HINT = b"Option+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
 
-PALETTE_KEY = b"\x1b[32;9u" if sys.platform == "darwin" else b"\x1b[32;3u"
+PALETTE_KEY = b"\x1b " if sys.platform == "darwin" else b"\x1b[32;3u"
 
 
 def choose_action(master, query):
@@ -39,10 +39,47 @@ def choose_action(master, query):
     os.write(master, b"\r")
 
 
+def exercise_ssh_directory_report(path):
+    home = path / "ssh-home"
+    project = home / "QA project's 100%"
+    project.mkdir(parents=True)
+    (home / ".bashrc").write_text("PS1='DIR-PROMPT> '; PROMPT_COMMAND='printf USER-PROMPT\\n'\n")
+    command = subprocess.check_output([
+        "node", "--input-type=module", "-e",
+        "import { sshShellCommand } from './apps/cli/dist/terminal/ssh-directory-report.js'; "
+        "process.stdout.write(sshShellCommand(process.argv[1]));",
+        str(home),
+    ]).decode()
+    master, slave = pty.openpty()
+    process = subprocess.Popen(
+        ["/bin/sh", "-c", command],
+        env=dict(os.environ, HOME=str(home), SHELL="/bin/bash"),
+        stdin=slave, stdout=slave, stderr=slave,
+    )
+    try:
+        def report(directory):
+            uri = "/".join("".join(f"%{byte:02x}" for byte in part.encode()) for part in str(directory).split("/"))
+            return f"\x1b]7;file://{uri}\x07".encode()
+
+        startup = read_until(master, b"DIR-PROMPT> ")
+        assert report(home) in startup and b"USER-PROMPT" in startup
+        os.write(master, f"cd {shlex.quote(str(project))}\r".encode())
+        read_until(master, report(project))
+        os.write(master, b"exit\r")
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
+
+
 def run():
     with tempfile.TemporaryDirectory(prefix="rucan-e2e-") as sandbox:
         path = Path(sandbox)
         path.chmod(0o700)
+        exercise_ssh_directory_report(path)
         env = dict(os.environ, TERM="xterm-256color", XDG_CONFIG_HOME=sandbox)
         env.pop("RUCAN_SESSION_ID", None)
         env["XDG_CACHE_HOME"] = str(path / "cache")
@@ -70,13 +107,13 @@ def run():
             '  "-o ControlMaster=auto -o ControlPersist=60 -o ControlPath=/tmp/rucan-ssh-"*"/%C -o StrictHostKeyChecking=ask "*) shared=yes; shift 6;;\n'
             'esac\n'
             'case "$*" in\n'
-            '  "ops@192.0.2.7" | "-o StrictHostKeyChecking=ask -- ops@192.0.2.7")\n'
-            '    [ "$#" -eq 1 ] || [ "$shared" = yes ] || exit 2\n'
-            '    printf "\\033]7;file://host/srv/QA%%20folder\\007SSH-ARGV-ok %s\\n" "$$";;\n'
             '  "-o StrictHostKeyChecking=ask -t -- ops@192.0.2.7 sh -c "*"/srv/QA folder"*)\n'
             '    [ "$shared" = yes ] || exit 2\n'
             '    exec env SHELL="${0%/*}/ssh-login" /bin/sh -c "$6";;\n'
-            '  "-o StrictHostKeyChecking=ask -- saved-fixture")\n'
+            '  "ops@192.0.2.7" | "-o StrictHostKeyChecking=ask -t -- ops@192.0.2.7 sh -c "*)\n'
+            '    [ "$#" -eq 1 ] || [ "$shared" = yes ] || exit 2\n'
+            '    printf "\\033]7;file://host/srv/QA%%20folder\\007SSH-ARGV-ok %s\\n" "$$";;\n'
+            '  "-o StrictHostKeyChecking=ask -t -- saved-fixture sh -c "*)\n'
             '    [ "$shared" = yes ] || exit 2\n'
             '    printf "SSH-ALIAS-ready\\n";;\n'
             '  *) exit 2;;\n'
@@ -96,7 +133,7 @@ def run():
         opener.write_text('#!/bin/sh\n[ "$#" -eq 1 ] || exit 2\nprintf "%s\\n" "$1" > "$XDG_CONFIG_HOME/opened-file"\n')
         opener.chmod(0o700)
         env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
-        node = ["node", "apps/cli/dist/main.js"]
+        node = ["node", str(Path("apps/cli/dist/main.js").resolve())]
         config_dir = path / "rucan"
         config_dir.mkdir(mode=0o700)
         project = path / "project"
@@ -124,10 +161,47 @@ def run():
                 exercise_split_panes(node, env)
                 exercise_workspace_launcher(node, env, path)
                 exercise_session_exit(node, env)
+                exercise_location_name(node, env, project)
                 exercise_ssh_retry(path)
             finally:
                 agent.terminate()
                 agent.wait(timeout=5)
+
+
+def exercise_location_name(node, env, project):
+    session = json.loads(subprocess.check_output(
+        node + ["new", "/bin/sh"], env=env, cwd=project,
+    ))
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 132, 0, 0))
+    process = subprocess.Popen(
+        node + ["attach", session["id"]], env=env, stdin=slave, stdout=slave, stderr=slave,
+    )
+    try:
+        read_until(master, b"localhost/project")
+        os.write(master, b"cd scoped\r")
+        read_until(master, b"localhost/scoped")
+        choose_action(master, "Rename workspace")
+        read_until(master, "localhost/scoped▏".encode())
+        os.write(master, b"sh")
+        read_until(master, "sh▏".encode())
+        os.write(master, b"\r")
+        read_until(master, "◇ sh ✎".encode())
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        updated = next(entry for entry in sessions if entry["id"] == session["id"])
+        assert updated["name"] == "sh" and updated["customName"]
+        os.write(master, b"\x1b")
+        read_until(master, PALETTE_HINT)
+        choose_action(master, "Close UI")
+        read_until(master, b"\x1b[?1049l")
+        assert process.wait(timeout=5) == 0
+        subprocess.check_call(node + ["kill", session["id"]], env=env)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
 
 
 def exercise_workspace_launcher(node, env, path):
@@ -518,13 +592,13 @@ def exercise_session_exit(node, env):
             node + ["new", "ssh", "ops@192.0.2.7"],
             env=env,
         )
-        read_until(master, " 2 ◇ ssh".encode())
+        read_until(master, " 2 ◇ ops@192".encode())
         choose_action(master, "2")
         read_until(master, b"SSH-ARGV-ok")
         choose_action(master, "1")
         read_until(master, "›1 ◇ tty-test".encode())
         os.write(master, b"\x1b[<0;20;4M")
-        frame = read_until(master, "›3 ◇ ops@192.0.2".encode())
+        frame = read_until(master, "›3 ◇ ops@".encode())
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         ssh_sessions = [item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7" and item["state"]["type"] == "running"]
         assert len(ssh_sessions) == 2

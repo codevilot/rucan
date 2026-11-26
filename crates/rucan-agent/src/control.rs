@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 struct Entry {
     name: String,
+    custom_name: bool,
     cwd: String,
     tmux_id: Option<String>,
     ssh_target: Option<String>,
@@ -59,6 +60,7 @@ fn describe(id: Uuid, entry: &Entry) -> Value {
     json!({
         "id": id.to_string(),
         "name": entry.name,
+        "customName": entry.custom_name,
         "cwd": entry.cwd,
         "backend": if entry.tmux_id.is_some() { "tmux" } else { "native" },
         "ownership": if entry.tmux_id.is_some() { "external" } else { "managed" },
@@ -258,6 +260,7 @@ impl Registry {
             Operation::Rename { name, .. } => {
                 validate_name(&name)?;
                 entry.name = name;
+                entry.custom_name = true;
                 Ok(describe(id, entry))
             }
             Operation::Scroll { offset, .. } => {
@@ -379,6 +382,7 @@ fn spawn(
     .map_err(|error| format!("could not start session: {error}"))?;
     let entry = Entry {
         name,
+        custom_name: false,
         tmux_id,
         ssh_target,
         ssh_reconnect,

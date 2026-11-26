@@ -1,6 +1,7 @@
 import type { Config } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
-import { quoteSshScript, reconnectingSsh } from "./ssh-reconnect.js";
+import { reconnectingSsh } from "./ssh-reconnect.js";
+import { sshShellCommand } from "./ssh-directory-report.js";
 import { sshSharingArgs } from "./ssh-sharing.js";
 import type { Geometry } from "./screen.js";
 import { validSshDestination } from "../agent/ssh-destination.js";
@@ -24,17 +25,11 @@ export async function openSshShell(
   const program = reconnect
     ? reconnectingSsh(args, target, directory)
     : { command: "ssh", args };
-  if (!reconnect && directory) {
-    const reported = directory.split("/").map(encodeURIComponent).join("/");
-    const script =
-      `if cd ${quoteSshScript(directory)}; then printf '\\033]7;file://%s\\007' ${quoteSshScript(reported)}; fi; ` +
-      'exec "${SHELL:-/bin/sh}" -i';
-    const command = `sh -c ${quoteSshScript(script)}`;
+  if (!reconnect) {
+    const command = sshShellCommand(directory);
     if (Buffer.byteLength(command) > 4096)
       throw new Error("The SSH working directory is too long.");
     args.push("-t", "--", target, command);
-  } else if (!reconnect) {
-    args.push("--", target);
   }
   const workspace = decodeWorkspace(
     await client.request({
