@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.21
+
+- Open the command palette with Command+Space on macOS and Alt+Space on Linux and WSL when the terminal forwards the shortcut. See the README for terminal mappings.
+
 ## 0.1.20
 
 - Open the SSH configuration editor from the new workspace chooser in the terminal work area.
