@@ -13,6 +13,8 @@ The agent creates the PTY and retains ownership across client detach, crash or S
 
 When the selected session ends, the UI switches to the next running session. When the last running session ends, the UI exits and restores the terminal's original screen.
 
+A session can occupy a pane in the split work area or run in the background. The **×** in a pane header hides the pane, leaving the session and its running child in the sidebar. The **×** on a managed session's sidebar row opens the confirmation to terminate that session.
+
 Quit Rucan closes the UI immediately and applies `defaults.on_exit`. The default and legacy `ask` setting keep all sessions. Explicit `keep-pinned` and `terminate` settings still apply to managed sessions. External tmux sessions require independent ownership handling. Temporary orphan retention is opt-in and should only run when the session is unpinned and has no clients. Persisted metadata cannot resurrect a process after the agent or host stops.
 
 Remote process survival depends on SSH detach and the host's user process cleanup policy. Detect unsupported environments and report them to the user. System policies require administrator control.

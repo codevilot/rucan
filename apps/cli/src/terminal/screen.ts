@@ -1,5 +1,4 @@
 import {
-  fit,
   renderFooter,
   renderHeader,
   renderPaletteLine,
@@ -8,7 +7,16 @@ import {
   reset,
   type Header,
 } from "./chrome.js";
-import type { Style, TerminalSnapshot } from "./snapshot.js";
+import type { TerminalSnapshot } from "./snapshot.js";
+import type { Divider, Rect } from "./panes.js";
+import {
+  move,
+  renderDropPreview,
+  renderPaneRow,
+  renderTerminalRow,
+  type PaneFrame,
+} from "./pane-render.js";
+export type { PaneFrame } from "./pane-render.js";
 import { sidebarWidth } from "./sidebar-layout.js";
 import { paletteBounds } from "./palette-layout.js";
 import type { Writable } from "node:stream";
@@ -16,7 +24,6 @@ import type { Writable } from "node:stream";
 const resizePointer = "\x1b]22;ew-resize\x1b\\";
 const resetPointer = "\x1b]22;\x1b\\";
 const hideCursor = "\x1b[?25l";
-const move = (row: number, col: number): string => `\x1b[${row};${col}H`;
 
 export interface Geometry {
   rows: number;
@@ -52,24 +59,6 @@ export function geometry(
   };
 }
 
-function sgr([flags, fg, bg]: Style): string {
-  const attributes = [0];
-  const styles = [1, 2, 3, 4, 7];
-  for (const [bit, code] of styles.entries()) {
-    if (flags & (1 << bit)) attributes.push(code);
-  }
-  for (const [color, code] of [
-    [fg, 38],
-    [bg, 48],
-  ] as const) {
-    if (color >= 256) {
-      const rgb = color - 256;
-      attributes.push(code, 2, rgb >> 16, (rgb >> 8) & 255, rgb & 255);
-    } else if (color >= 0) attributes.push(code, 5, color);
-  }
-  return `\x1b[${attributes.join(";")}m`;
-}
-
 export interface ScreenModel {
   layout: Geometry;
   header: Header;
@@ -80,6 +69,9 @@ export interface ScreenModel {
   paletteLines?: readonly string[];
   snapshot: TerminalSnapshot | undefined;
   showCursor: boolean;
+  panes?: readonly PaneFrame[];
+  dividers?: readonly Divider[];
+  dropPreview?: Rect;
 }
 
 /** Own every write to the outer terminal while the interactive UI is mounted. */
@@ -140,6 +132,9 @@ export class Screen {
       showCursor,
       contentLines,
       paletteLines,
+      panes,
+      dividers = [],
+      dropPreview,
     } = model;
     const lines = [renderHeader(header, layout.cols)];
     const paletteTop = paletteBounds(layout).top - 2;
@@ -157,20 +152,21 @@ export class Screen {
         resizingSidebar,
       );
       let line = rightSidebar ? "" : sidebar;
-      let col = layout.contentStart;
+      const terminalRow = row + 2;
       const paletteLine = paletteLines?.[row - paletteTop];
       if (paletteLine)
         line += renderPaletteLine(paletteLine, contentWidth, row - paletteTop);
       else if (contentLines)
         line += renderPanelLine(contentLines[row] ?? "", contentWidth, row);
-      for (const [width, text, style] of snapshot?.grid.lines[row] ?? []) {
-        if (col >= contentEnd) break;
-        line +=
-          move(row + 2, col + 1) +
-          sgr(style) +
-          fit(text, Math.min(width, contentEnd - col));
-        col += width;
-      }
+      line += panes?.length
+        ? renderPaneRow(terminalRow, panes, dividers)
+        : renderTerminalRow(
+            terminalRow,
+            layout.contentStart + 1,
+            contentWidth,
+            snapshot?.grid.lines[row],
+          );
+      if (dropPreview) line += renderDropPreview(terminalRow, dropPreview);
       if (rightSidebar && layout.sidebar > 0)
         line += move(row + 2, contentEnd + 1) + sidebar;
       lines.push(line + reset);
@@ -198,7 +194,9 @@ export class Screen {
       if (line !== this.#previous[index])
         output += move(index + 1, 1) + reset + "\x1b[2K" + line;
     }
-    const grid = showCursor ? snapshot?.grid : undefined;
+    const focused = panes?.find(({ focused }) => focused);
+    const terminal = focused?.snapshot ?? snapshot;
+    const grid = showCursor ? terminal?.grid : undefined;
     const modes =
       (grid?.applicationCursor ? "\x1b[?1h" : "\x1b[?1l") +
       (grid?.applicationKeypad ? "\x1b=" : "\x1b>");
@@ -209,7 +207,7 @@ export class Screen {
     const mouse =
       grid?.mouse === "any-motion"
         ? "1003"
-        : layout.sidebar > 0 || grid?.mouse === "button-motion"
+        : layout.sidebar > 0 || panes?.length || grid?.mouse === "button-motion"
           ? "1002"
           : "1000";
     if (mouse !== this.#mouseMode) {
@@ -220,17 +218,22 @@ export class Screen {
     this.#previous = lines;
     this.#painted = model;
     if (
-      snapshot &&
-      showCursor &&
-      !snapshot.grid.cursorHidden &&
-      snapshot.cursor.row < layout.terminalRows
+      terminal &&
+      grid &&
+      !dropPreview &&
+      !grid.cursorHidden &&
+      terminal.cursor.row <
+        (focused ? focused.pane.height - 1 : layout.terminalRows)
     ) {
+      const contentX = focused?.pane.x ?? layout.contentStart + 1;
+      const contentY = focused ? focused.pane.y + 1 : 2;
+      const contentCols = focused?.pane.width ?? contentWidth;
       output +=
         move(
-          snapshot.cursor.row + 2,
+          contentY + terminal.cursor.row,
           Math.min(
-            layout.cols,
-            layout.contentStart + snapshot.cursor.column + 1,
+            contentX + contentCols - 1,
+            contentX + terminal.cursor.column,
           ),
         ) + "\x1b[?25h";
     }

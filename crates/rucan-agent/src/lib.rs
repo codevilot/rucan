@@ -4,6 +4,7 @@ pub mod bridge;
 pub mod client;
 mod control;
 mod filesystem;
+mod foreground_ssh;
 pub mod framing;
 mod operation;
 mod paths;

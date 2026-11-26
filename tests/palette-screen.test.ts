@@ -4,7 +4,17 @@ import xterm from "@xterm/headless";
 import { expect, it } from "vitest";
 import { CommandPalette } from "../apps/cli/src/terminal/palette.js";
 import { paletteBounds } from "../apps/cli/src/terminal/palette-layout.js";
+import { renderTerminalRow } from "../apps/cli/src/terminal/pane-render.js";
 import { geometry, Screen } from "../apps/cli/src/terminal/screen.js";
+
+it("brightens the default-background ANSI blue used by shell prompts", () => {
+  expect(renderTerminalRow(2, 1, 20, [[4, "docs", [0, 4, -1]]])).toContain(
+    "\x1b[0;38;2;0;120;212mdocs",
+  );
+  expect(renderTerminalRow(2, 1, 20, [[4, "docs", [0, 4, 15]]])).toContain(
+    "\x1b[0;38;5;4;48;5;15mdocs",
+  );
+});
 
 it("keeps one clickable command card across filtering, reopening, and resizing", async () => {
   const terminal = new xterm.Terminal({

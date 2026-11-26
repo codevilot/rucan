@@ -31,3 +31,5 @@ An explicit cross-client detach has `force: true`; normal workspace switching re
 Session descriptions may include `sshTarget` for an interactive OpenSSH tab. Compatible clients accept an absent field from older agents. The agent reports the destination for the SSH tab's own invocation and for a direct `ssh destination` or `ssh -- destination` session.
 
 When both peers negotiate the `workspace-cwd` capability, the client may request `workspace-cwd` with a session ID. The response contains nullable `path` and `reportedPath` fields for the PTY child process and its latest OSC 7 directory report.
+
+Workspace directory replies may include `foregroundSsh` with a validated `destination` and its `target`, or `unsupported` for a known foreground SSH process whose arguments cannot be reused. The field is optional for compatibility with older agents.

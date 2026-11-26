@@ -17,6 +17,7 @@ export function footerFor(
   mode: Mode,
   scrollback: number,
   canEdit = true,
+  canOpenFile = false,
 ): string {
   switch (mode) {
     case "hosts":
@@ -30,7 +31,7 @@ export function footerFor(
     case "tmux":
       return "Esc Palette · ↑↓ Select · Enter Attach · N New tmux session";
     case "explorer":
-      return `Esc Palette · ↑↓ Select · Enter Expand/Preview · R Refresh${canEdit ? " · O Editor" : ""}`;
+      return `Esc Palette${canOpenFile ? " · V Open in default app" : ""} · ↑↓ Select · Enter Expand/Preview · R Refresh${canEdit ? " · O Editor" : ""}`;
     case "close":
       return "Esc / Enter Cancel · Y Close";
     case "palette":

@@ -48,6 +48,15 @@ def run():
         env["RUCAN_AGENT_BINARY"] = str(Path("target/debug/rucan-agent").resolve())
         bin_dir = path / "bin"
         bin_dir.mkdir()
+        foreground_dir = path / "foreground"
+        foreground_dir.mkdir()
+        foreground_source = foreground_dir / "ssh.c"
+        foreground_source.write_text(
+            '#include <stdio.h>\nint main(void) {\n'
+            '  puts("FOREGROUND-SSH-ready"); fflush(stdout);\n'
+            '  while (getchar() != EOF) {}\n  return 0;\n}\n'
+        )
+        subprocess.check_call(["cc", str(foreground_source), "-o", str(foreground_dir / "ssh")])
         ssh_login = bin_dir / "ssh-login"
         ssh_login.write_text('#!/bin/sh\nprintf "SSH-CWD-ok %s\\n" "$$"\nread -r input\n')
         ssh_login.chmod(0o700)
@@ -64,6 +73,9 @@ def run():
             'read -r input\n'
         )
         ssh_fixture.chmod(0o700)
+        opener = bin_dir / ("open" if sys.platform == "darwin" else "xdg-open")
+        opener.write_text('#!/bin/sh\n[ "$#" -eq 1 ] || exit 2\nprintf "%s\\n" "$1" > "$XDG_CONFIG_HOME/opened-file"\n')
+        opener.chmod(0o700)
         env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
         node = ["node", "apps/cli/dist/main.js"]
         config_dir = path / "rucan"
@@ -73,6 +85,7 @@ def run():
         (project / "outside.txt").write_text("Outside the selected directory\n")
         (project / "scoped").mkdir()
         (project / "scoped" / "README.md").write_text("RUCAN-FILE-PREVIEW\n")
+        (project / "scoped" / "video clip.MP4").write_bytes(b"\x00video fixture")
         (config_dir / "config.yaml").write_text(
             'version: 1\nupdates: {check_on_startup: false}\n'
             f'workspaces: [{{name: tty-test, cwd: "{project}", command: "/bin/sh"}}]\n'
@@ -89,6 +102,7 @@ def run():
                         raise RuntimeError("agent exited before creating its socket")
                     time.sleep(0.025)
                 exercise(node, env)
+                exercise_split_panes(node, env)
                 exercise_session_exit(node, env)
             finally:
                 agent.terminate()
@@ -130,6 +144,17 @@ def exercise(node, env):
         assert b"outside.txt" not in data
         os.write(master, b"\r")
         read_until(master, b"RUCAN-FILE-PREVIEW")
+        os.write(master, b"\x1b[B")
+        read_until(master, b"Open in default app")
+        os.write(master, b"v")
+        opened = Path(env["XDG_CONFIG_HOME"]) / "opened-file"
+        for _ in range(100):
+            if opened.exists() and opened.read_text():
+                break
+            time.sleep(0.025)
+        assert Path(opened.read_text().strip()) == (
+            Path(env["XDG_CONFIG_HOME"]) / "project/scoped/video clip.MP4"
+        ).resolve()
         os.write(master, b"\x1b")
         read_until(master, b"Rucan commands")
         os.write(master, b"\x1b")
@@ -180,6 +205,117 @@ def exercise_sidebar(master):
         expect_width(width)
     drag(40, 25)
     expect_width(75)
+
+
+def exercise_split_panes(node, env):
+    sessions = []
+
+    def new(name):
+        session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
+        sessions.append(session["id"])
+        subprocess.check_output(node + ["rename", session["id"], name], env=env)
+        return session
+
+    def mouse(button, col, row, release=False):
+        os.write(master, f"\x1b[<{button};{col};{row}{'m' if release else 'M'}".encode())
+
+    def click(col, row):
+        mouse(0, col, row)
+        mouse(0, col, row, release=True)
+
+    def hover(col, row, preview_col, preview_row):
+        mouse(32, col, row)
+        frame = read_until(master, b"Drop here")
+        assert any(
+            f"\x1b[{preview_row};{preview_col}H".encode() in line and b"Drop here" in line
+            for line in frame.split(b"\x1b[2K")
+        )
+
+    master, slave = pty.openpty()
+    process = None
+    try:
+        first = new("first-pane")
+        middle = new("middle-pane")
+        new("next-pane")
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+        process = subprocess.Popen(
+            node + ["attach", first["id"]], env=env, stdin=slave, stdout=slave, stderr=slave
+        )
+        frame = read_until(master, PALETTE_HINT)
+        assert "›1 ◇ first-pane".encode() in frame
+        assert " 3 ◇ next-pane".encode() in frame
+
+        mouse(0, 2, 5)
+        hover(28, 12, 26, 13)
+        hover(97, 12, 64, 13)
+        mouse(0, 97, 12, release=True)
+        read_until(master, "next-pane".encode())
+        mouse(0, 2, 4)
+        hover(80, 22, 64, 19)
+        mouse(0, 80, 22, release=True)
+        read_until(master, "middle-pane".encode())
+
+        click(40, 2)
+        read_until(master, "›1 ◇ first-pane".encode())
+        os.write(master, b"pane_token=first; (sleep 1; printf 'BACKGROUND-%s\\n' kept) &\r")
+        click(80, 14)
+        frame = read_until(master, "›2 ◇ middle-pane".encode())
+        os.write(master, b"pane_token=middle; printf 'FOCUSED-%s\\n' \"$pane_token\"\r")
+        frame += read_until(master, b"FOCUSED-middle")
+        if b"BACKGROUND-kept" not in frame:
+            read_until(master, b"BACKGROUND-kept")
+
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 24, 0, 0))
+        process.send_signal(signal.SIGWINCH)
+        frame = read_until(master, b"\x1b[2J").split(b"\x1b[2J", 1)[1]
+        os.write(master, b"stty size; printf 'NARROW-%s\\n' \"$pane_token\"\r")
+        frame += read_until(master, b"NARROW-middle")
+        assert b"22 24" in frame
+        assert b"next-pane" not in frame and b"first-pane" not in frame
+
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+        process.send_signal(signal.SIGWINCH)
+        frame = read_until(master, b"\x1b[14;64H")
+        assert b"first-pane" in frame and b"next-pane" in frame
+
+        mouse(0, 63, 7)
+        mouse(32, 55, 7)
+        mouse(0, 55, 7, release=True)
+        click(40, 2)
+        read_until(master, "›1 ◇ first-pane".encode())
+        os.write(master, b"stty size; printf 'FOCUSED-%s\\n' \"$pane_token\"\r")
+        frame = read_until(master, b"FOCUSED-first")
+        assert b"21 29" in frame
+
+        click(100, 14)
+        os.write(master, b"printf 'AFTER-CLOSE-%s\\n' \"$pane_token\"\r")
+        read_until(master, b"AFTER-CLOSE-first")
+        inventory = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        detached = next(item for item in inventory if item["id"] == middle["id"])
+        assert detached["pid"] == middle["pid"]
+        assert detached["state"]["type"] == "running"
+
+        mouse(0, 2, 4)
+        hover(29, 12, 26, 13)
+        mouse(0, 29, 12, release=True)
+        read_until(master, "middle-pane".encode())
+        click(30, 2)
+        os.write(master, b"printf 'BACK-%s\\n' \"$pane_token\"\r")
+        read_until(master, b"BACK-middle")
+        choose_action(master, "Close UI")
+        read_until(master, b"\x1b[?1049l")
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process is not None and process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
+        for session in sessions:
+            subprocess.run(
+                node + ["kill", session], env=env, check=False,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
 
 
 def exercise_session_exit(node, env):
@@ -258,6 +394,19 @@ def exercise_session_exit(node, env):
         assert "›1 ◇ tty-test".encode() in frame
         os.write(master, b"printf 'NEW-%s\\n' ready\r")
         read_until(master, b"NEW-ready")
+        foreground = shlex.quote(str(Path(env["XDG_CONFIG_HOME"]) / "foreground/ssh"))
+        os.write(master, f"PS1='RUCAN-LOCAL> '; {foreground} ops@192.0.2.7\r".encode())
+        read_until(master, b"FOREGROUND-SSH-ready")
+        os.write(master, b"\x1b[<0;20;3M")
+        read_until(master, b"SSH-ARGV-ok")
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        clone = next(item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7" and item["state"]["type"] == "running")
+        subprocess.check_call(node + ["kill", clone["id"]], env=env)
+        read_until(master, "›1 ◇ tty-test".encode())
+        os.write(master, b"\x03")
+        read_until(master, b"RUCAN-LOCAL>")
+        os.write(master, b"printf 'LOCAL-%s\\n' restored\r")
+        read_until(master, b"LOCAL-restored")
         os.write(master, b"\x1b ")
         read_until(master, b"Rucan commands")
         os.write(master, b"ssh")
@@ -276,7 +425,7 @@ def exercise_session_exit(node, env):
         os.write(master, b"\x1b[<0;20;4M")
         frame = read_until(master, "›3 ◇ ops@192.0.2".encode())
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
-        ssh_sessions = [item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7"]
+        ssh_sessions = [item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7" and item["state"]["type"] == "running"]
         assert len(ssh_sessions) == 2
         assert len({item["pid"] for item in ssh_sessions}) == 2
         if b"SSH-CWD-ok" not in frame:
