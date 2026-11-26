@@ -26,3 +26,5 @@ The local agent now owns native PTYs across Unix socket connections. The first c
 A Tokio task exclusively owns each child handle and uses SIGCHLD notifications to reap it. This avoids races between a reaper and a termination request using a recycled PID. Dedicated bounded input workers keep blocked PTY writes off the connection loop. The terminal parser processes output with a bounded scrollback even when watchers are absent.
 
 The sidebar BG control changes the pin on the selected managed session. The pin is used by the keep-pinned exit policy. Choosing to close the UI and keep all sessions retains both pinned and unpinned sessions.
+
+Locally opened SSH tabs can share an authenticated OpenSSH connection. Each tab has its own remote shell and PTY. OpenSSH keeps the shared connection alive while channels are active and expires the master after 60 idle seconds. A disconnected SSH transport ends ordinary SSH channels. Remote agent and tmux sessions have their own lifecycle.

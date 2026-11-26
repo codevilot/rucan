@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.17
+
+- Share an authenticated OpenSSH connection across locally opened SSH tabs.
+- Open the first shared SSH tab from the command palette.
+
 ## 0.1.16
 
 - Open another SSH session to the same host when an older local agent still owns the original terminal.

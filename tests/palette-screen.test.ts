@@ -149,17 +149,21 @@ it("ignores clicks until the current palette frame drains", async () => {
   output.destroy();
 });
 
-it.each([
-  "SSH connect",
-  "Switch host",
-  "Manage tmux sessions",
-  "View terminal history",
-])("omits %s from palette search", (query) => {
+it("opens SSH connect from the command palette", () => {
   const palette = new CommandPalette([], "selected", undefined, true);
-  palette.input(query);
-  expect(palette.lines(22)).toContain("   No matching actions");
-  expect(palette.input("\r")).toBeUndefined();
+  palette.input("SSH connect");
+  expect(palette.input("\r")).toEqual({ kind: "command", key: "c" });
 });
+
+it.each(["Switch host", "Manage tmux sessions", "View terminal history"])(
+  "omits %s from palette search",
+  (query) => {
+    const palette = new CommandPalette([], "selected", undefined, true);
+    palette.input(query);
+    expect(palette.lines(22)).toContain("   No matching actions");
+    expect(palette.input("\r")).toBeUndefined();
+  },
+);
 
 it("resets a resize pointer before leaving the alternate screen", () => {
   const chunks: string[] = [];

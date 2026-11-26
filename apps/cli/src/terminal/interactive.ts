@@ -267,8 +267,10 @@ class InteractiveWorkspace {
       current?.pid &&
       !current.sshTarget &&
       !this.#host &&
-      !directories?.supportsForegroundSsh
-        ? await localForegroundSsh(current.pid)
+      (!directories?.supportsForegroundSsh ||
+        directories.foregroundSsh?.type === "unsupported")
+        ? ((await localForegroundSsh(current.pid)) ??
+          directories?.foregroundSsh)
         : directories?.foregroundSsh;
     if (!current?.sshTarget && foreground?.type === "unsupported") {
       throw new Error(
@@ -285,6 +287,7 @@ class InteractiveWorkspace {
           this.#layout,
           target,
           current?.sshTarget ? directories?.reported : undefined,
+          !this.#host,
         )
       : await createWorkspace(
           this.#client,
@@ -1057,6 +1060,8 @@ class InteractiveWorkspace {
         this.#config,
         this.#layout,
         this.#sshTarget,
+        undefined,
+        !this.#host,
       );
       this.#workspaces.push(workspace);
       this.#mode = "terminal";

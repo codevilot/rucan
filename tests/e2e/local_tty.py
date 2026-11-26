@@ -63,10 +63,16 @@ def run():
         ssh_fixture = bin_dir / "ssh"
         ssh_fixture.write_text(
             '#!/bin/sh\n'
+            'shared=no\n'
+            'case "$*" in\n'
+            '  "-o ControlMaster=auto -o ControlPersist=60 -o ControlPath=/tmp/rucan-ssh-"*"/%C -o StrictHostKeyChecking=ask "*) shared=yes; shift 6;;\n'
+            'esac\n'
             'case "$*" in\n'
             '  "ops@192.0.2.7" | "-o StrictHostKeyChecking=ask -- ops@192.0.2.7")\n'
+            '    [ "$#" -eq 1 ] || [ "$shared" = yes ] || exit 2\n'
             '    printf "\\033]7;file://host/srv/QA%%20folder\\007SSH-ARGV-ok %s\\n" "$$";;\n'
             '  "-o StrictHostKeyChecking=ask -t -- ops@192.0.2.7 sh -c "*"/srv/QA folder"*)\n'
+            '    [ "$shared" = yes ] || exit 2\n'
             '    exec env SHELL="${0%/*}/ssh-login" /bin/sh -c "$6";;\n'
             '  *) exit 2;;\n'
             'esac\n'
@@ -410,7 +416,7 @@ def exercise_session_exit(node, env):
         os.write(master, b"\x1b ")
         read_until(master, b"Rucan commands")
         os.write(master, b"ssh")
-        read_until(master, b"No matching actions")
+        read_until(master, b"SSH connect")
         os.write(master, b"\x1b")
         read_until(master, PALETTE_HINT)
         subprocess.check_output(

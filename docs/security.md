@@ -16,8 +16,10 @@ See [SECURITY.md](../SECURITY.md) for reporting guidance.
 
 Working-directory lookups use the selected PTY child and never send commands into the foreground terminal. OSC 7 reports are treated as untrusted paths. They can select a folder on the already selected SSH destination and are never rendered as control sequences.
 
-When an SSH tab reports a directory, a new connection uses a quoted path in a fixed remote shell command. Host-key verification and authentication remain with OpenSSH.
+When an SSH tab reports a directory, a new remote shell uses a quoted path in a fixed command. Host-key verification and authentication remain with OpenSSH.
 
 To open another SSH workspace, the agent may inspect the bounded arguments of the PTY foreground process. It returns only a destination or an unsupported indicator. The CLI opens the destination with its own SSH invocation and host-key verification, without replaying the foreground command or its options.
 
 With an older local agent, the CLI can check the user-owned PTY foreground group directly when creating a new session. Remote agent PIDs are excluded from local inspection, and only a validated SSH destination crosses into a new invocation.
+
+Rucan enables OpenSSH connection sharing for local SSH tabs. The CLI creates a user-owned directory with mode 0700 for control sockets. OpenSSH selects a socket by connection identity, owns the authenticated connection, and closes its master after 60 idle seconds. Password entry stays inside OpenSSH.
