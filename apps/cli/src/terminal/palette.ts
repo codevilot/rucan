@@ -18,11 +18,10 @@ interface PaletteEntry {
 }
 
 const actions: readonly CommandEntry[] = [
-  { key: "n", label: "New workspace", keywords: "new session" },
   {
-    key: "N",
-    label: "Choose workspace source",
-    keywords: "new workspace picker",
+    key: "n",
+    label: "New workspace",
+    keywords: "new session choose workspace source picker localhost",
   },
   { key: "c", label: "SSH connect", keywords: "remote host" },
   { key: "C", label: "SSH connect and resume", keywords: "reconnect tmux" },
