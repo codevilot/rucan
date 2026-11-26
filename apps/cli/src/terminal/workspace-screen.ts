@@ -27,7 +27,7 @@ interface WorkspaceScreenState {
   hostIndex: number;
   tmux: readonly TmuxTarget[];
   tmuxIndex: number;
-  name: string;
+  renameName: string | undefined;
   offset: number;
   sshTarget: string;
   closeTarget: NativeWorkspace | undefined;
@@ -40,12 +40,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
     ? `${selected.name}${selected.persistent ? " ◆" : ""}`
     : "No session";
   const explorer = state.mode === "explorer" ? state.explorer : undefined;
-  const footer = footerFor(
-    state.mode,
-    state.name,
-    state.offset,
-    explorer?.canEdit,
-  );
+  const footer = footerFor(state.mode, state.offset, explorer?.canEdit);
   if (state.mode === "update" && state.update) {
     return {
       layout: state.layout,
@@ -130,14 +125,24 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
             }
           : state.mode === "close" && state.closeTarget
             ? { paletteLines: closeDialogLines(state.closeTarget.name) }
-            : state.mode === "palette" && state.paletteLines
-              ? { paletteLines: state.paletteLines }
-              : {}),
+            : state.mode === "rename" && state.renameName !== undefined
+              ? {
+                  paletteLines: [
+                    "Rename workspace",
+                    `${state.renameName}▏`,
+                    "  Cancel",
+                    "  Save",
+                  ],
+                }
+              : state.mode === "palette" && state.paletteLines
+                ? { paletteLines: state.paletteLines }
+                : {}),
     snapshot:
       (selection && state.layout.sidebar === 0) ||
       explorer ||
       state.mode === "palette" ||
       state.mode === "close" ||
+      state.mode === "rename" ||
       state.mode === "ssh"
         ? undefined
         : state.mode === "history"

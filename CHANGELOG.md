@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.14
+
+- Open the workspace rename dialog with the current name filled in.
+- Open another SSH session to the same destination from the sidebar, even when the reported remote directory is unavailable.
+
 ## 0.1.13
 
 - Restore the original terminal screen when the last session exits.

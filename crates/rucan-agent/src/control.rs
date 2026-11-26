@@ -390,18 +390,29 @@ fn spawn(
 }
 
 fn ssh_target(command: &str, args: &[String]) -> Option<String> {
-    if command != "ssh"
-        || args.first()?.as_str() != "-o"
-        || args.get(1)?.as_str() != "StrictHostKeyChecking=ask"
-    {
+    if Path::new(command).file_name()?.to_str()? != "ssh" {
         return None;
     }
-    let target = match &args[2..] {
+    let target = match args {
+        [target] => target,
         [end, target] if end == "--" => target,
-        [terminal, end, target, _] if terminal == "-t" && end == "--" => target,
+        [option, verification, end, target]
+            if option == "-o" && verification == "StrictHostKeyChecking=ask" && end == "--" =>
+        {
+            target
+        }
+        [option, verification, terminal, end, target, _]
+            if option == "-o"
+                && verification == "StrictHostKeyChecking=ask"
+                && terminal == "-t"
+                && end == "--" =>
+        {
+            target
+        }
         _ => return None,
     };
     ((1..=128).contains(&target.len())
+        && !target.starts_with('-')
         && target
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || b"_.:@-".contains(&byte)))

@@ -28,6 +28,6 @@ On a continuing watch, when the same connection sends the exact previous sequenc
 
 An explicit cross-client detach has `force: true`; normal workspace switching releases only the caller's lease. Shutdown accepts `force` and refuses to stop with active native sessions unless it is true. Scrollback, rename, filesystem and tmux operations share the [request schema](../packages/protocol/control.schema.json).
 
-Session descriptions may include `sshTarget` for an interactive OpenSSH tab. Compatible clients accept an absent field from older agents. The agent reports the destination only for the specific invocation used by the SSH tab.
+Session descriptions may include `sshTarget` for an interactive OpenSSH tab. Compatible clients accept an absent field from older agents. The agent reports the destination for the SSH tab's own invocation and for a direct `ssh destination` or `ssh -- destination` session.
 
 When both peers negotiate the `workspace-cwd` capability, the client may request `workspace-cwd` with a session ID. The response contains nullable `path` and `reportedPath` fields for the PTY child process and its latest OSC 7 directory report.

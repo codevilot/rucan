@@ -37,6 +37,12 @@ type WorkspaceResult =
   | { type: "host"; host: string | undefined; client: SessionClient };
 
 type ExitPolicy = Exclude<Config["defaults"]["on_exit"], "ask">;
+type RenameDraft = {
+  id: string;
+  name: string;
+  replace: boolean;
+  returnTo: "terminal" | "palette";
+};
 
 export async function runInteractive(
   config: Config,
@@ -102,8 +108,7 @@ class InteractiveWorkspace {
   #hostTrial = 0;
   #history: TerminalSnapshot | undefined;
   #offset = 0;
-  #renameDraft:
-    { id: string; name: string; returnTo: "terminal" | "palette" } | undefined;
+  #renameDraft: RenameDraft | undefined;
   #palette: CommandPalette | undefined;
   #sshTarget = "";
   #tmux: TmuxTarget[] = [];
@@ -398,6 +403,11 @@ class InteractiveWorkspace {
   }
 
   async #input(event: TerminalInput): Promise<void> {
+    if (this.#mode === "rename" && this.#renameDraft) {
+      await this.#renameInput(this.#renameDraft, event);
+      this.#draw();
+      return;
+    }
     if (this.#mode === "close") {
       const choice = closeDialogInput(event, this.#screen);
       if (!choice) return;
@@ -486,7 +496,7 @@ class InteractiveWorkspace {
         return;
       }
       if (action?.type === "rename") {
-        this.#startRename(action.workspace.id, "terminal");
+        this.#startRename(action.workspace, "terminal");
         this.#draw();
         return;
       }
@@ -568,17 +578,6 @@ class InteractiveWorkspace {
         await this.#scroll(
           Math.max(0, this.#offset - this.#layout.terminalRows),
         );
-    } else if (this.#mode === "rename" && this.#renameDraft) {
-      const draft = this.#renameDraft;
-      if (key === "\x1b") this.#finishRename();
-      else if (key === "\x7f")
-        draft.name = [...draft.name].slice(0, -1).join("");
-      else if (key === "\r" && draft.name.trim()) await this.#rename(draft);
-      else if (
-        !/\p{Cc}/u.test(key) &&
-        Buffer.byteLength(draft.name + key) <= 128
-      )
-        draft.name += key;
     } else if (this.#mode === "update") {
       if (key === "1") {
         if (this.#update) {
@@ -655,9 +654,42 @@ class InteractiveWorkspace {
     this.#draw();
   }
 
-  #startRename(id: string, returnTo: "terminal" | "palette"): void {
-    this.#renameDraft = { id, name: "", returnTo };
+  #startRename(
+    workspace: NativeWorkspace,
+    returnTo: RenameDraft["returnTo"],
+  ): void {
+    this.#renameDraft = {
+      id: workspace.id,
+      name: workspace.name,
+      replace: true,
+      returnTo,
+    };
     this.#mode = "rename";
+  }
+
+  async #renameInput(draft: RenameDraft, event: TerminalInput): Promise<void> {
+    if (event.type === "mouse" && event.button === 0 && event.release) {
+      const line = this.#screen.paletteLineAt(event.row, event.col);
+      if (line === 2) this.#finishRename();
+      if (line === 3 && draft.name.trim()) await this.#rename(draft);
+    }
+    if (event.type !== "bytes") return;
+    const key = event.bytes.toString("utf8");
+    if (key === "\x1b") this.#finishRename();
+    else if (key === "\r") {
+      if (draft.name.trim()) await this.#rename(draft);
+    } else if (key === "\x01") {
+      draft.replace = true;
+    } else if (key === "\x7f") {
+      draft.name = draft.replace ? "" : [...draft.name].slice(0, -1).join("");
+      draft.replace = false;
+    } else if (!/\p{Cc}/u.test(key)) {
+      const name = draft.replace ? key : draft.name + key;
+      if (Buffer.byteLength(name) <= 128) {
+        draft.name = name;
+        draft.replace = false;
+      }
+    }
   }
 
   #finishRename(): void {
@@ -744,7 +776,7 @@ class InteractiveWorkspace {
       const policy = this.#config.defaults.on_exit;
       await this.#exit(policy === "ask" ? "keep-all" : policy);
     } else if (key === "r" && this.#selected) {
-      this.#startRename(this.#selected.id, "palette");
+      this.#startRename(this.#selected, "palette");
     } else if (key === "s" && this.#selected) {
       await this.#scroll(this.#layout.terminalRows);
       this.#mode = "history";
@@ -898,7 +930,7 @@ class InteractiveWorkspace {
         hostIndex: this.#hostIndex,
         tmux: this.#tmux,
         tmuxIndex: this.#tmuxIndex,
-        name: this.#renameDraft?.name ?? "",
+        renameName: this.#renameDraft?.name,
         offset: this.#offset,
         sshTarget: this.#sshTarget,
         closeTarget: this.#closeTarget,
