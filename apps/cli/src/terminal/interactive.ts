@@ -1,3 +1,4 @@
+import { usesLocationName, workspaceName } from "./workspace-name.js";
 import { posix } from "node:path";
 import { availableUpdate, skipUpdate } from "../release/updates.js";
 import { restartAfterUpdate } from "../release/restart.js";
@@ -337,6 +338,7 @@ class InteractiveWorkspace {
       await this.#refreshWorkspaces(workspace.id, render);
       return;
     }
+    await this.#refreshWorkspaceLocation();
     if (render) this.#draw();
     this.#watcher.start(
       workspace.id,
@@ -358,6 +360,36 @@ class InteractiveWorkspace {
     if (render) this.#draw();
   }
 
+  async #refreshWorkspaceLocation(): Promise<void> {
+    const workspace = this.#selected;
+    if (!workspace || !usesLocationName(workspace, this.#host)) return;
+    const directories = await workingDirectories(
+      this.#client,
+      workspace.id,
+    ).catch(() => undefined);
+    if (!directories) return;
+    const foreground = directories.foregroundSsh;
+    const target =
+      workspace.sshTarget ??
+      (foreground?.type === "destination" ? foreground.target : undefined);
+    const host = target ?? this.#host ?? "localhost";
+    const path = workspace.sshTarget
+      ? directories.reported
+      : target
+        ? undefined
+        : (directories.path ?? workspace.cwd);
+    if (workspace.location?.host === host && workspace.location.path === path)
+      return;
+    const updated = {
+      ...workspace,
+      location: { host, ...(path ? { path } : {}) },
+    };
+    this.#selected = updated;
+    this.#workspaces = this.#workspaces.map((entry) =>
+      entry.id === updated.id ? updated : entry,
+    );
+  }
+
   async #refreshWorkspaces(exitedId?: string, render = true): Promise<void> {
     const running = (await listWorkspaces(this.#client)).filter(
       ({ id, running }) => running && id !== exitedId,
@@ -371,6 +403,8 @@ class InteractiveWorkspace {
     );
     this.#workspaces = workspaces;
     const runningIds = new Set(workspaces.map(({ id }) => id));
+    if (selected)
+      this.#selected = workspaces.find(({ id }) => id === selected.id);
     const closedPanes = this.#panes.ids.filter((id) => !runningIds.has(id));
     for (const id of closedPanes) this.#panes.remove(id);
     if (closedPanes.length) this.#paneDivider = undefined;
@@ -411,10 +445,13 @@ class InteractiveWorkspace {
       }
     }
     if (closedPanes.length) await this.#resize();
+    await this.#refreshWorkspaceLocation();
     if (
       render &&
       (previous.length !== workspaces.length ||
-        workspaces.some((workspace, index) => workspace !== previous[index]))
+        this.#workspaces.some(
+          (workspace, index) => workspace !== previous[index],
+        ))
     )
       this.#draw();
   }
@@ -603,6 +640,7 @@ class InteractiveWorkspace {
               this.#layout.rows,
               this.#workspaces,
               this.#selected?.id,
+              this.#host,
             )
           : undefined;
       if (action?.type === "launcher") {
@@ -868,7 +906,7 @@ class InteractiveWorkspace {
   ): void {
     this.#renameDraft = {
       id: workspace.id,
-      name: workspace.name,
+      name: workspaceName(workspace, this.#host),
       replace: true,
       returnTo,
     };
@@ -912,6 +950,7 @@ class InteractiveWorkspace {
     if (!workspace) return;
     const renamed = {
       ...workspace,
+      customName: true as const,
       ...decodeWorkspace(
         await this.#client.request({
           type: "rename",

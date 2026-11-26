@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-Type `exit` at the shell prompt to close the current shell. Open the command palette with [Command+Space on macOS or Alt+Space on Linux and WSL](#palette-shortcuts). You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to exit immediately using `defaults.on_exit` (keep all sessions by default). The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
+Type `exit` at the shell prompt to close the current shell. Open the command palette with [Option+Space on macOS or Alt+Space on Linux and WSL](#palette-shortcuts). You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to exit immediately using `defaults.on_exit` (keep all sessions by default). The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
 
 ```yaml
 version: 1
@@ -38,7 +38,7 @@ The **+ New workspace** row below the sidebar session list opens a chooser. Sele
 
 Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
 
-Click the pencil (✎) beside a session name to open the rename dialog. Type a new name and press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
+Default sidebar names show the host and final directory component, such as `localhost/project` or `build-box/app`. The selected workspace updates as its directory changes. Click the pencil (✎) beside a session name to open the rename dialog and replace the automatic label. Type a new name and press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
 
 **Browse files** opens the selected session's current directory on its host. Select a supported local video, audio file, image, or PDF and press `V` to open it in the system's default application. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.
 
@@ -57,7 +57,7 @@ See the [architecture](docs/architecture.md) for the client, transport and agent
 
 ## Palette shortcuts
 
-- **macOS · Command+Space**. In **System Settings → Keyboard → Keyboard Shortcuts → Spotlight**, move **Show Spotlight search** to another key. Configure your terminal to send Command+Space as CSI `32;9u`. In iTerm2, add a key mapping in your profile with **Send Hex Code** and enter `0x1b 0x5b 0x33 0x32 0x3b 0x39 0x75`. Option+Space also works when the terminal sends Escape followed by Space. See [Apple’s keyboard shortcuts](https://support.apple.com/en-ie/102650) and [iTerm2 key mappings](https://iterm2.com/documentation/2.1/documentation-preferences.html).
+- **macOS · Option+Space**. Configure your terminal's Option key to act as Meta or Esc+ so it sends Escape followed by Space. In iTerm2, this setting is in **Settings → Profiles → Keys**. You can also map Option+Space to **Send Hex Code** with `0x1b 0x20`.
 - **Linux and Windows via WSL · Alt+Space**. The terminal must pass the chord through. If Windows Terminal opens the window menu, add this entry to the `actions` array in `settings.json`. See [Windows Terminal send-input bindings](https://learn.microsoft.com/en-us/windows/terminal/tips-and-tricks#send-input-commands-with-a-key-binding).
 
   ```json

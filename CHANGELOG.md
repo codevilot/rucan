@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.22
+
+- Show the host and current folder in default sidebar names and retain explicit names when reattaching.
+- Report working-directory changes from Bash in newly opened managed SSH tabs.
+- Restore Option+Space as the primary macOS palette shortcut.
+
 ## 0.1.21
 
 - Open the command palette with Command+Space on macOS and Alt+Space on Linux and WSL when the terminal forwards the shortcut. See the README for terminal mappings.

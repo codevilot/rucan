@@ -107,6 +107,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
         state.layout.rows,
         state.workspaces,
         selected,
+        state.host,
       ),
     ...(selection && state.layout.sidebar === 0
       ? { contentLines: selection }

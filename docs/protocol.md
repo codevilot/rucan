@@ -16,7 +16,7 @@ Kind 0 is invalid. The shared [framing vectors](../packages/protocol/framing-vec
 
 After hello, exchange one request and response at a time on each connection. A JSON request is an object with numeric unsigned 32-bit `id` and an `operation` object tagged with `type`. Responses echo the ID and include either `ok: true` and `value`, or `ok: false` and `error`.
 
-The native agent supports `list`, `create`, `attach`, `detach`, `pin`, `kill`, `resize`, `snapshot` and `watch`. Session operations identify a UUID in the `session` field. Create takes `name`, `command`, `args`, `cwd`, `rows`, `cols` and `persistent`. Pin sets the `persistent` flag. Resize takes `rows` and `cols`.
+The native agent supports `list`, `create`, `attach`, `detach`, `pin`, `kill`, `resize`, `snapshot` and `watch`. Session operations identify a UUID in the `session` field. Create takes `name`, `command`, `args`, `cwd`, `rows`, `cols` and `persistent`. Session descriptions may include `customName`. An explicit `rename` sets it to true so clients can keep the chosen name when a directory-based label would otherwise apply. Pin sets the `persistent` flag. Resize takes `rows` and `cols`.
 
 Input kind 2 carries a four-byte unsigned big-endian request ID, 16 UUID bytes in standard network order, and up to 8192 input bytes. Resize and input are accepted only from the controlling connection. Attaching grants control if no controller is present, otherwise it returns observer status. Closing a connection releases its input leases.
 

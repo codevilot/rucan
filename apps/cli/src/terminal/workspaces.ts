@@ -5,6 +5,8 @@ import { validSshDestination } from "../agent/ssh-destination.js";
 
 export interface NativeWorkspace {
   name: string;
+  customName?: true;
+  location?: { host: string; path?: string };
   id: string;
   cwd: string;
   backend: "native" | "tmux";
@@ -47,6 +49,9 @@ export function decodeWorkspace(raw: unknown): NativeWorkspace {
     throw new Error("Invalid agent workspace");
   return {
     name: workspace.name,
+    ...("customName" in workspace && workspace.customName === true
+      ? { customName: true as const }
+      : {}),
     backend: workspace.backend,
     ownership: workspace.ownership,
     id: workspace.id,
@@ -90,8 +95,18 @@ export function reconcileWorkspaces(
   const current = new Map(
     running.map((workspace) => [workspace.id, workspace]),
   );
-  const workspaces = previous.filter(({ id }) => current.has(id));
-  for (const { id } of workspaces) current.delete(id);
+  const workspaces = previous.flatMap((workspace) => {
+    const latest = current.get(workspace.id);
+    if (!latest) return [];
+    current.delete(workspace.id);
+    return [
+      workspace.name === latest.name &&
+      workspace.customName === latest.customName &&
+      workspace.persistent === latest.persistent
+        ? workspace
+        : { ...workspace, ...latest },
+    ];
+  });
   workspaces.push(...current.values());
   const index = previous.findIndex(({ id }) => id === selectedId);
   return {
@@ -170,10 +185,11 @@ export function workspaceLabel(
   workspace: NativeWorkspace,
   index: number,
   activeId?: string,
+  displayName = workspace.name,
 ): string {
   const selected = workspace.id === activeId ? "›" : " ";
   const pin =
     workspace.backend === "tmux" ? "T" : workspace.persistent ? "◆" : "◇";
   const slot = index < 9 ? String(index + 1) : " ";
-  return `${selected}${slot} ${pin} ${workspace.name}`;
+  return `${selected}${slot} ${pin} ${displayName}`;
 }

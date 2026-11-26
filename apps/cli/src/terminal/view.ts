@@ -12,7 +12,7 @@ export type Mode =
   | "hosts";
 
 export const paletteShortcut =
-  process.platform === "darwin" ? "Command+Space" : "Alt+Space";
+  process.platform === "darwin" ? "Option+Space" : "Alt+Space";
 
 export function footerFor(
   mode: Mode,

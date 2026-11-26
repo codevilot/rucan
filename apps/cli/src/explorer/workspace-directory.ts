@@ -22,7 +22,7 @@ export async function workspaceDirectory(
       );
     if (!reported)
       throw new Error(
-        "The SSH terminal has not reported its current directory.",
+        "The SSH shell has not reported its current directory. Reopen it with SSH connect, or enable OSC 7 in the remote shell.",
       );
     const target = workspace.sshTarget;
     return {

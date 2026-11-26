@@ -1,4 +1,5 @@
 import stringWidth from "string-width";
+import { workspaceName } from "./workspace-name.js";
 import { fit } from "./chrome.js";
 import { workspaceLabel, type NativeWorkspace } from "./workspaces.js";
 
@@ -20,6 +21,23 @@ function withControl(label: string, width: number, control: string): string {
   return clipped + " ".repeat(room - stringWidth(clipped)) + " " + control;
 }
 
+function sidebarRowLabel(
+  workspace: NativeWorkspace,
+  index: number,
+  width: number,
+  selectedId: string | undefined,
+  host: string | undefined,
+): string {
+  const nameWidth =
+    width - 1 - newWithCloseOffset - buttonWidth - renameWidth - 5;
+  return workspaceLabel(
+    workspace,
+    index,
+    selectedId,
+    workspaceName(workspace, host, nameWidth),
+  );
+}
+
 function renameLabel(label: string, width: number): string {
   const room = width - 1 - (2 * buttonWidth + buttonGap.length) - renameWidth;
   if (room <= 0) return "";
@@ -38,6 +56,7 @@ export function workspaceSidebar(
   rows: number,
   workspaces: readonly NativeWorkspace[],
   selected?: NativeWorkspace,
+  host?: string,
 ): string[] {
   const background =
     selected?.ownership === "managed" ? (selected.persistent ? "●" : "○") : "–";
@@ -52,7 +71,10 @@ export function workspaceSidebar(
         (workspace.ownership === "managed"
           ? closeButton
           : " ".repeat(buttonWidth));
-      const editable = renameLabel(label, width);
+      const editable = renameLabel(
+        sidebarRowLabel(workspace, index, width, selected?.id, host),
+        width,
+      );
       const padding = width - 1 - stringWidth(editable + controls);
       return editable + " ".repeat(Math.max(0, padding)) + controls;
     }),
@@ -72,6 +94,7 @@ export function sidebarActionAt(
   rows: number,
   workspaces: readonly NativeWorkspace[],
   selectedId?: string,
+  host?: string,
 ):
   | { type: "new"; workspaceIndex: number }
   | { type: "launcher" }
@@ -95,7 +118,10 @@ export function sidebarActionAt(
     return { type: "close", workspace };
   if (workspace) {
     const end = stringWidth(
-      renameLabel(workspaceLabel(workspace, workspaceIndex, selectedId), width),
+      renameLabel(
+        sidebarRowLabel(workspace, workspaceIndex, width, selectedId, host),
+        width,
+      ),
     );
     if (end > 0 && col > end - renameWidth && col <= end)
       return { type: "rename", workspace };
