@@ -16,6 +16,7 @@ interface WorkspaceScreenState {
   status: string;
   update: string | undefined;
   layout: Geometry;
+  resizingSidebar: boolean;
   selected: NativeWorkspace | undefined;
   workspaces: readonly NativeWorkspace[];
   snapshot: TerminalSnapshot | undefined;
@@ -97,6 +98,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       state.update && state.mode !== "exit"
         ? `${footer} · Update v${state.update}`
         : footer,
+    resizingSidebar: state.resizingSidebar,
     sidebarLines:
       selection ??
       explorer?.sidebar ??

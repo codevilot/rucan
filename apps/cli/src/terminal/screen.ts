@@ -13,6 +13,8 @@ import { sidebarWidth } from "./sidebar-layout.js";
 import { paletteBounds } from "./palette-layout.js";
 import type { Writable } from "node:stream";
 
+const resizePointer = "\x1b]22;ew-resize\x1b\\";
+const resetPointer = "\x1b]22;\x1b\\";
 const hideCursor = "\x1b[?25l";
 const move = (row: number, col: number): string => `\x1b[${row};${col}H`;
 
@@ -73,6 +75,7 @@ export interface ScreenModel {
   header: Header;
   footer: string;
   sidebarLines: readonly string[];
+  resizingSidebar?: boolean;
   contentLines?: readonly string[];
   paletteLines?: readonly string[];
   snapshot: TerminalSnapshot | undefined;
@@ -89,6 +92,7 @@ export class Screen {
   #blocked = false;
   #keyModes = "";
   #mouseMode = "";
+  #resizingSidebar = false;
 
   constructor(output: Writable) {
     this.#output = output;
@@ -142,12 +146,15 @@ export class Screen {
     const contentWidth = layout.cols - layout.sidebar;
     const contentEnd = layout.contentStart + contentWidth;
     const rightSidebar = layout.sidebarSide === "right";
+    const resizingSidebar =
+      model.resizingSidebar === true && layout.sidebar > 0;
     for (let row = 0; row < layout.rows - 2; row++) {
       const sidebar = renderSidebar(
         sidebarLines[row] ?? "",
         layout.sidebar,
         row === 0,
         rightSidebar,
+        resizingSidebar,
       );
       let line = rightSidebar ? "" : sidebar;
       let col = layout.contentStart;
@@ -171,6 +178,10 @@ export class Screen {
     lines.push(renderFooter(footer, layout.cols));
 
     let output = hideCursor;
+    if (resizingSidebar !== this.#resizingSidebar) {
+      output += resizingSidebar ? resizePointer : resetPointer;
+      this.#resizingSidebar = resizingSidebar;
+    }
     if (
       this.#paintedLayout &&
       (this.#paintedLayout.rows !== layout.rows ||
@@ -230,8 +241,11 @@ export class Screen {
   leave(): void {
     this.#latest = undefined;
     this.#output.off("drain", this.#onDrain);
+    const pointer = this.#resizingSidebar ? resetPointer : "";
+    this.#resizingSidebar = false;
     this.#output.write(
-      reset +
+      pointer +
+        reset +
         "\x1b[?1l\x1b>\x1b[?2004l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?7h\x1b[?1049l\x1b[?25h",
     );
   }

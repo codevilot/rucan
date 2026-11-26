@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12
+
+- Highlight the sidebar divider and show a horizontal resize pointer in compatible terminals while dragging.
+
 ## 0.1.11
 
 - Added palette actions to move the sidebar between the left and right edges.

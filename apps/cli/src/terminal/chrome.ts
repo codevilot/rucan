@@ -66,6 +66,7 @@ export function renderSidebar(
   width: number,
   heading: boolean,
   right = false,
+  resizing = false,
 ): string {
   if (width <= 0) return "";
   const label = fit(text, width - 1);
@@ -77,7 +78,7 @@ export function renderSidebar(
         : label.startsWith("›")
           ? tab
           : sidebar;
-  const divider = edge + "│" + reset;
+  const divider = (resizing ? button + "┃" : edge + "│") + reset;
   const content = style + fill(label, width - 1) + reset;
   return right ? divider + content : content + divider;
 }
