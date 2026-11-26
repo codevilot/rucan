@@ -34,6 +34,8 @@ Click **+** next to a workspace to open another session at that workspace's curr
 
 Choose **SSH connect and resume** from the local command palette when the server has tmux. Rucan keeps the local tab open and retries interrupted connections. Press Enter during the wait to retry immediately or Ctrl+C to stop. Complete the OpenSSH password prompt if it appears to return to the same remote tmux session. Each **+** tab gets its own resumable session.
 
+The **+ New workspace** row below the sidebar session list opens a chooser. Select the current workspace to open another session using its connection, or choose a concrete alias from the local `~/.ssh/config`. The chooser supports typing to filter and is also available as **Choose workspace source** in the palette. Use **Edit SSH config** from the local palette to open the user configuration in the configured editor. Reopen the chooser after saving to see the latest aliases.
+
 Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
 
 Click the pencil (✎) beside a session name to open the rename dialog. Type a new name and press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.

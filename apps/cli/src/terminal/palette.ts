@@ -19,6 +19,11 @@ interface PaletteEntry {
 
 const actions: readonly CommandEntry[] = [
   { key: "n", label: "New workspace", keywords: "new session" },
+  {
+    key: "N",
+    label: "Choose workspace source",
+    keywords: "new workspace picker",
+  },
   { key: "c", label: "SSH connect", keywords: "remote host" },
   { key: "C", label: "SSH connect and resume", keywords: "reconnect tmux" },
   { key: "e", label: "Browse files" },
@@ -37,6 +42,7 @@ export class CommandPalette {
     private readonly update: string | undefined,
     private readonly sidebarVisible: boolean,
     private readonly sidebarSide: "left" | "right" = "left",
+    private readonly local = true,
   ) {}
 
   #matches(): PaletteEntry[] {
@@ -45,6 +51,15 @@ export class CommandPalette {
     )?.persistent;
     const commands: CommandEntry[] = [
       ...actions,
+      ...(this.local
+        ? [
+            {
+              key: "E",
+              label: "Edit SSH config",
+              keywords: "ssh settings aliases",
+            },
+          ]
+        : []),
       {
         key: "p",
         label: pinned ? "Unpin workspace" : "Pin workspace",

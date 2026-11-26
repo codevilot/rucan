@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.19
+
+- Open the workspace chooser below the sidebar list to reuse the current connection or choose a saved SSH alias.
+- Edit the user OpenSSH configuration from the command palette.
+
 ## 0.1.18
 
 - Resume remote tmux shells after SSH transport interruptions, including password reauthentication.

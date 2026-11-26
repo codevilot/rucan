@@ -104,6 +104,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
       workspaceSidebar(
         workspaceLabels(state.config, state.workspaces, selected?.id),
         state.layout.sidebar,
+        state.layout.rows,
         state.workspaces,
         selected,
       ),
@@ -141,13 +142,15 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
                     "  Save",
                   ],
                 }
-              : state.mode === "palette" && state.paletteLines
+              : (state.mode === "palette" || state.mode === "launcher") &&
+                  state.paletteLines
                 ? { paletteLines: state.paletteLines }
                 : {}),
     snapshot:
       (selection && state.layout.sidebar === 0) ||
       explorer ||
       state.mode === "palette" ||
+      state.mode === "launcher" ||
       state.mode === "close" ||
       state.mode === "rename" ||
       state.mode === "ssh"

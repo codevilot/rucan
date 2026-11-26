@@ -2,6 +2,7 @@ export type Mode =
   | "terminal"
   | "close"
   | "palette"
+  | "launcher"
   | "ssh"
   | "explorer"
   | "tmux"
@@ -36,6 +37,8 @@ export function footerFor(
       return "Esc / Enter Cancel · Y Close";
     case "palette":
       return "Esc Terminal · ↑↓ Select · Enter Run";
+    case "launcher":
+      return "Esc Cancel · ↑↓ Select · Enter Open";
     case "ssh":
       return "Esc Palette · Enter Connect";
     case "terminal":
