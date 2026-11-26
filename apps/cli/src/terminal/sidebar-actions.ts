@@ -2,6 +2,16 @@ import stringWidth from "string-width";
 import { fit } from "./chrome.js";
 import type { NativeWorkspace } from "./workspaces.js";
 
+const newButton = "[+]";
+const closeButton = "[×]";
+const buttonGap = " ";
+const buttonWidth = stringWidth(newButton);
+const newWithCloseOffset = buttonWidth + buttonGap.length;
+
+function hitsButton(col: number, right: number): boolean {
+  return col > right - buttonWidth && col <= right;
+}
+
 function withControl(label: string, width: number, control: string): string {
   const room = Math.max(0, width - 2 - stringWidth(control));
   const clipped = fit(label, room);
@@ -20,7 +30,7 @@ export function workspaceSidebar(
     withControl(
       lines[0] ?? "",
       width,
-      `BG${background}${workspaces.length === 0 ? " +" : "  "}`,
+      `BG${background}${workspaces.length === 0 ? buttonGap + newButton : "  "}`,
     ),
     ...lines
       .slice(1)
@@ -29,7 +39,11 @@ export function workspaceSidebar(
           ? withControl(
               label,
               width,
-              workspaces[index]?.ownership === "managed" ? "+ ×" : "+  ",
+              newButton +
+                buttonGap +
+                (workspaces[index]?.ownership === "managed"
+                  ? closeButton
+                  : " ".repeat(buttonWidth)),
             )
           : label,
       ),
@@ -47,14 +61,18 @@ export function sidebarActionAt(
   | { type: "close"; workspace: NativeWorkspace }
   | undefined {
   if (width < 7) return undefined;
+  const right = width - 1;
   if (row === 2) {
-    if (workspaces.length === 0 && col === width - 1) return { type: "new" };
+    if (workspaces.length === 0 && hitsButton(col, right))
+      return { type: "new" };
+    if (workspaces.length === 0) return undefined;
     if (col >= width - 5 && col <= width - 3) return { type: "background" };
   }
   const workspaceIndex = row - 3;
   const workspace = workspaces[workspaceIndex];
-  if (workspace && col === width - 3) return { type: "new", workspaceIndex };
-  if (workspace?.ownership === "managed" && col === width - 1)
+  if (workspace && hitsButton(col, right - newWithCloseOffset))
+    return { type: "new", workspaceIndex };
+  if (workspace?.ownership === "managed" && hitsButton(col, right))
     return { type: "close", workspace };
   return undefined;
 }

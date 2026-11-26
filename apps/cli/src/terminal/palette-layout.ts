@@ -23,7 +23,7 @@ export function paletteBounds(layout: Geometry): {
       ),
     left:
       1 +
-      layout.sidebar +
+      layout.contentStart +
       Math.floor((layout.cols - layout.sidebar - width) / 2),
     width,
   };

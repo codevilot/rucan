@@ -19,11 +19,7 @@ interface PaletteEntry {
 
 const actions: readonly CommandEntry[] = [
   { key: "n", label: "New workspace", keywords: "new session" },
-  { key: "c", label: "SSH connect", keywords: "IP remote" },
   { key: "e", label: "Browse files" },
-  { key: "h", label: "Switch host" },
-  { key: "t", label: "Manage tmux sessions" },
-  { key: "s", label: "View terminal history", requiresSession: true },
   { key: "r", label: "Rename workspace", requiresSession: true },
   { key: "d", label: "Close UI and keep sessions", keywords: "detach" },
   { key: "q", label: "Quit Rucan", keywords: "exit /exit" },
@@ -38,6 +34,7 @@ export class CommandPalette {
     private readonly selected: string | undefined,
     private readonly update: string | undefined,
     private readonly sidebarVisible: boolean,
+    private readonly sidebarSide: "left" | "right" = "left",
   ) {}
 
   #matches(): PaletteEntry[] {
@@ -54,6 +51,10 @@ export class CommandPalette {
       {
         key: "b",
         label: this.sidebarVisible ? "Hide sidebar" : "Show sidebar",
+      },
+      {
+        key: "m",
+        label: `Move sidebar to the ${this.sidebarSide === "left" ? "right" : "left"}`,
       },
       {
         key: "u",

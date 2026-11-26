@@ -29,7 +29,7 @@ it("keeps one clickable command card across filtering, reopening, and resizing",
       layout,
       header: "Rucan",
       footer: "Option+Space Palette",
-      sidebarLines: ["WORKSPACES", "↗ SSH connect"],
+      sidebarLines: ["WORKSPACES", "local-shell"],
       snapshot: undefined,
       showCursor: false,
       ...(open ? { paletteLines: palette.lines(layout.rows - 2) } : {}),
@@ -47,13 +47,13 @@ it("keeps one clickable command card across filtering, reopening, and resizing",
 
   screen.enter();
   try {
-    for (const [rows, cols] of [
-      [24, 100],
-      [15, 42],
-      [30, 118],
+    for (const [rows, cols, side] of [
+      [24, 100, "left"],
+      [15, 42, "left"],
+      [30, 118, "right"],
     ] as const) {
       terminal.resize(cols, rows);
-      layout = geometry(rows, cols);
+      layout = geometry(rows, cols, undefined, side);
       const open = await render(true);
       const { top, left } = paletteBounds(layout);
       expect(
@@ -62,7 +62,7 @@ it("keeps one clickable command card across filtering, reopening, and resizing",
       expect(open[top - 1]).toContain("Rucan commands");
       expect(open.some((line) => line.includes("New workspace"))).toBe(true);
 
-      palette.input("ssh");
+      palette.input("browse");
       const filtered = await render(true);
       expect(
         filtered.filter((line) => line.includes("Rucan commands")),
@@ -70,12 +70,12 @@ it("keeps one clickable command card across filtering, reopening, and resizing",
       expect(filtered.some((line) => line.includes("New workspace"))).toBe(
         false,
       );
-      expect(filtered[top + 1]).toContain("SSH connect");
+      expect(filtered[top + 1]).toContain("Browse files");
       const hit = screen.paletteLineAt(top + 2, left);
       expect(hit).toBe(2);
       expect(palette.actionAt(hit ?? -1, rows - 2)).toEqual({
         kind: "command",
-        key: "c",
+        key: "e",
       });
       expect(screen.paletteLineAt(top + 2, left - 1)).toBeUndefined();
       expect(screen.paletteLineAt(top + 3, left)).toBeUndefined();
@@ -94,7 +94,7 @@ it("keeps one clickable command card across filtering, reopening, and resizing",
         false,
       );
       expect(screen.paletteLineAt(top + 2, left)).toBeUndefined();
-      for (let i = 0; i < 4; i++) palette.input("\x7f");
+      for (let i = 0; i < 7; i++) palette.input("\x7f");
       await render(true);
     }
   } finally {
@@ -137,4 +137,16 @@ it("ignores clicks until the current palette frame drains", async () => {
   expect(screen.paletteLineAt(top + 2, left)).toBe(2);
   expect(screen.paletteLineAt(top + 3, left)).toBeUndefined();
   output.destroy();
+});
+
+it.each([
+  "SSH connect",
+  "Switch host",
+  "Manage tmux sessions",
+  "View terminal history",
+])("omits %s from palette search", (query) => {
+  const palette = new CommandPalette([], "selected", undefined, true);
+  palette.input(query);
+  expect(palette.lines(22)).toContain("   No matching actions");
+  expect(palette.input("\r")).toBeUndefined();
 });

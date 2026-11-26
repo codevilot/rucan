@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.11
+
+- Added palette actions to move the sidebar between the left and right edges.
+- Widened the clickable new-session and close buttons.
+- Removed SSH connect, host switching, tmux management, and terminal history from the command palette.
+
 ## 0.1.10
 
 - Added a close button to managed workspace rows with a confirmation dialog before stopping the session.

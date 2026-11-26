@@ -1,6 +1,6 @@
 # Remote workspaces
 
-The **SSH connect** action in the command palette opens an interactive OpenSSH tab. Enter an IP address, alias, or `user@host`. The agent for the current workspace host runs OpenSSH, so that host's SSH configuration and credentials apply. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive. Click **+** on the SSH tab's row to open another connection to the same destination. If the tab has reported a working directory through OSC 7, the new shell starts there.
+To create a managed OpenSSH tab from the CLI, run `rucan new ssh -o StrictHostKeyChecking=ask -- user@host` and select the new session in Rucan. You can use an IP address or an SSH alias as the destination. The agent that owns the session runs OpenSSH with its host’s SSH configuration and credentials. The tab supports OpenSSH's host-key confirmation and authentication prompts. It stays available while the underlying SSH connection is alive. Click **+** on the SSH tab's row to open another connection to the same destination. If the tab has reported a working directory through OSC 7, the new shell starts there.
 
 ## Agent-backed remote workspaces
 
