@@ -1071,7 +1071,11 @@ class InteractiveWorkspace {
   async #openWorkspaceLauncher(): Promise<void> {
     const aliases = this.#host ? [] : await sshAliases();
     if (this.#stopped) return;
-    this.#launcher = new WorkspaceLauncher(this.#selected?.name, aliases);
+    this.#launcher = new WorkspaceLauncher(
+      this.#selected?.name,
+      aliases,
+      !this.#host,
+    );
     this.#mode = "launcher";
   }
 
@@ -1081,6 +1085,8 @@ class InteractiveWorkspace {
       const workspace = await this.#new();
       this.#mode = "terminal";
       await this.#select(workspace);
+    } else if (action.type === "edit-ssh") {
+      await this.#openEditor(await ensureUserSshConfig());
     } else {
       const workspace = await openSshShell(
         this.#client,
