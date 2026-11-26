@@ -9,11 +9,16 @@ import { workspaceDirectory } from "../explorer/workspace-directory.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
 import { connectLocalAgent } from "../agent/local.js";
+import { ensureUserSshConfig, sshAliases } from "../agent/ssh-aliases.js";
 import type { Config } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
 import type { MouseEvent, TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
 import { CommandPalette, type PaletteAction } from "./palette.js";
+import {
+  WorkspaceLauncher,
+  type WorkspaceLaunch,
+} from "./workspace-launcher.js";
 import { closeDialogInput } from "./close-dialog.js";
 import { sidebarActionAt } from "./sidebar-actions.js";
 import { SidebarLayout } from "./sidebar-layout.js";
@@ -124,6 +129,7 @@ class InteractiveWorkspace {
   #offset = 0;
   #renameDraft: RenameDraft | undefined;
   #palette: CommandPalette | undefined;
+  #launcher: WorkspaceLauncher | undefined;
   #sshTarget = "";
   #sshReconnect = false;
   #tmux: TmuxTarget[] = [];
@@ -530,6 +536,25 @@ class InteractiveWorkspace {
       this.#draw();
       return;
     }
+    if (this.#mode === "launcher" && this.#launcher) {
+      if (event.type === "bytes") {
+        const key = event.bytes.toString("utf8");
+        if (key === "\x1b") this.#mode = "terminal";
+        else await this.#launchWorkspace(this.#launcher.input(key));
+      } else if (
+        event.type === "mouse" &&
+        event.release &&
+        event.button === 0
+      ) {
+        const line = this.#screen.paletteLineAt(event.row, event.col);
+        if (line !== undefined)
+          await this.#launchWorkspace(
+            this.#launcher.actionAt(line, this.#layout.rows - 2),
+          );
+      }
+      this.#draw();
+      return;
+    }
     if (event.type === "mouse") {
       if (this.#mode === "palette") {
         if (event.release && event.button === 0) {
@@ -575,17 +600,19 @@ class InteractiveWorkspace {
               event.row,
               sidebarCol,
               this.#layout.sidebar,
+              this.#layout.rows,
               this.#workspaces,
               this.#selected?.id,
             )
           : undefined;
+      if (action?.type === "launcher") {
+        await this.#openWorkspaceLauncher();
+        this.#draw();
+        return;
+      }
       if (action?.type === "new") {
-        const source =
-          action.workspaceIndex === undefined
-            ? undefined
-            : this.#workspaces[action.workspaceIndex];
-        if (action.workspaceIndex !== undefined && !source) return;
-        await this.#select(await this.#new(source));
+        const source = this.#workspaces[action.workspaceIndex];
+        if (source) await this.#select(await this.#new(source));
         return;
       }
       if (action?.type === "close") {
@@ -989,6 +1016,10 @@ class InteractiveWorkspace {
         directory.connect,
         directory.canEdit,
       );
+    } else if (key === "N") {
+      await this.#openWorkspaceLauncher();
+    } else if (key === "E" && !this.#host) {
+      await this.#openEditor(await ensureUserSshConfig());
     } else if (key === "n") {
       const workspace = await this.#new();
       this.#mode = "terminal";
@@ -1032,8 +1063,37 @@ class InteractiveWorkspace {
       this.#update,
       this.#layout.sidebar > 0,
       this.#sidebar.side,
+      !this.#host,
     );
     this.#mode = "palette";
+  }
+
+  async #openWorkspaceLauncher(): Promise<void> {
+    const aliases = this.#host ? [] : await sshAliases();
+    if (this.#stopped) return;
+    this.#launcher = new WorkspaceLauncher(this.#selected?.name, aliases);
+    this.#mode = "launcher";
+  }
+
+  async #launchWorkspace(action: WorkspaceLaunch | undefined): Promise<void> {
+    if (!action) return;
+    if (action.type === "current") {
+      const workspace = await this.#new();
+      this.#mode = "terminal";
+      await this.#select(workspace);
+    } else {
+      const workspace = await openSshShell(
+        this.#client,
+        this.#config,
+        this.#layout,
+        action.host,
+        undefined,
+        true,
+      );
+      this.#workspaces.push(workspace);
+      this.#mode = "terminal";
+      await this.#select(workspace);
+    }
   }
 
   #applySidebar(): void {
@@ -1122,7 +1182,11 @@ class InteractiveWorkspace {
       sshReconnect: this.#sshReconnect,
       closeTarget: this.#closeTarget,
       paletteLines:
-        this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,
+        this.#mode === "palette"
+          ? this.#palette?.lines(rows)
+          : this.#mode === "launcher"
+            ? this.#launcher?.lines(rows)
+            : undefined,
     });
     if (this.#mode === "terminal") {
       const { panes, dividers } = this.#panes.view(this.#layout);

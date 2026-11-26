@@ -23,3 +23,5 @@ To open another SSH workspace, the agent may inspect the bounded arguments of th
 With an older local agent, the CLI can check the user-owned PTY foreground group directly when creating a new session. Remote agent PIDs are excluded from local inspection, and only a validated SSH destination crosses into a new invocation.
 
 Rucan enables OpenSSH connection sharing for local SSH tabs. The CLI creates a user-owned directory with mode 0700 for control sockets. OpenSSH selects a socket by connection identity, owns the authenticated connection, and closes its master after 60 idle seconds. Password entry stays inside OpenSSH.
+
+The local workspace chooser lists concrete aliases from the user OpenSSH configuration and bounded Include files. It does not execute configuration directives when listing aliases. OpenSSH applies the real configuration when opening the chosen alias. The explicit edit action opens the user configuration with the configured terminal editor.

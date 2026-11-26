@@ -28,20 +28,21 @@ function renameLabel(label: string, width: number): string {
   return clipped + gap + renameButton;
 }
 
+function launcherRow(count: number, rows: number): number {
+  return 3 + Math.min(count, Math.max(0, rows - 4));
+}
+
 export function workspaceSidebar(
   lines: readonly string[],
   width: number,
+  rows: number,
   workspaces: readonly NativeWorkspace[],
   selected?: NativeWorkspace,
 ): string[] {
   const background =
     selected?.ownership === "managed" ? (selected.persistent ? "●" : "○") : "–";
-  return [
-    withControl(
-      lines[0] ?? "",
-      width,
-      `BG${background}${workspaces.length === 0 ? buttonGap + newButton : "  "}`,
-    ),
+  const sidebar = [
+    withControl(lines[0] ?? "", width, `BG${background}  `),
     ...lines.slice(1).map((label, index) => {
       const workspace = workspaces[index];
       if (!workspace) return label;
@@ -56,25 +57,33 @@ export function workspaceSidebar(
       return editable + " ".repeat(Math.max(0, padding)) + controls;
     }),
   ];
+  sidebar.splice(
+    launcherRow(workspaces.length, rows) - 2,
+    0,
+    "+ New workspace",
+  );
+  return sidebar;
 }
 
 export function sidebarActionAt(
   row: number,
   col: number,
   width: number,
+  rows: number,
   workspaces: readonly NativeWorkspace[],
   selectedId?: string,
 ):
-  | { type: "new"; workspaceIndex?: number }
+  | { type: "new"; workspaceIndex: number }
+  | { type: "launcher" }
   | { type: "background" }
   | { type: "close"; workspace: NativeWorkspace }
   | { type: "rename"; workspace: NativeWorkspace }
   | undefined {
   if (width < 7) return undefined;
   const right = width - 1;
+  if (row === launcherRow(workspaces.length, rows) && col >= 1 && col <= right)
+    return { type: "launcher" };
   if (row === 2) {
-    if (workspaces.length === 0 && hitsButton(col, right))
-      return { type: "new" };
     if (workspaces.length === 0) return undefined;
     if (col >= width - 5 && col <= width - 3) return { type: "background" };
   }

@@ -74,11 +74,17 @@ def run():
             '  "-o StrictHostKeyChecking=ask -t -- ops@192.0.2.7 sh -c "*"/srv/QA folder"*)\n'
             '    [ "$shared" = yes ] || exit 2\n'
             '    exec env SHELL="${0%/*}/ssh-login" /bin/sh -c "$6";;\n'
+            '  "-o StrictHostKeyChecking=ask -- saved-fixture")\n'
+            '    [ "$shared" = yes ] || exit 2\n'
+            '    printf "SSH-ALIAS-ready\\n";;\n'
             '  *) exit 2;;\n'
             'esac\n'
             'read -r input\n'
         )
         ssh_fixture.chmod(0o700)
+        editor = bin_dir / "vi"
+        editor.write_text('#!/bin/sh\nfor file do :; done\n[ -f "$file" ] || exit 2\nprintf "SSH-CONFIG-editor\\n"\nread -r input\n')
+        editor.chmod(0o700)
         opener = bin_dir / ("open" if sys.platform == "darwin" else "xdg-open")
         opener.write_text('#!/bin/sh\n[ "$#" -eq 1 ] || exit 2\nprintf "%s\\n" "$1" > "$XDG_CONFIG_HOME/opened-file"\n')
         opener.chmod(0o700)
@@ -109,11 +115,49 @@ def run():
                     time.sleep(0.025)
                 exercise(node, env)
                 exercise_split_panes(node, env)
+                exercise_workspace_launcher(node, env, path)
                 exercise_session_exit(node, env)
                 exercise_ssh_retry(path)
             finally:
                 agent.terminate()
                 agent.wait(timeout=5)
+
+
+def exercise_workspace_launcher(node, env, path):
+    home = path / "launcher-home"
+    (home / ".ssh").mkdir(parents=True)
+    (home / ".ssh/config").write_text("Host saved-fixture\n  HostName example.invalid\n")
+    client_env = dict(env, HOME=str(home))
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+    process = subprocess.Popen(node, env=client_env, stdin=slave, stdout=slave, stderr=slave)
+    try:
+        read_until(master, PALETTE_HINT)
+        os.write(master, b"\x1b[<0;7;4M\x1b[<0;7;4m")
+        read_until(master, b"Current workspace")
+        os.write(master, b"\r")
+        read_until(master, "›2 ◇ tty-test".encode())
+        os.write(master, b"\x1b[<0;7;5M\x1b[<0;7;5m")
+        read_until(master, "SSH · saved-fixture".encode())
+        os.write(master, b"saved-fixture")
+        read_until(master, "saved-fixture▏".encode())
+        os.write(master, b"\r")
+        read_until(master, b"SSH-ALIAS-ready")
+        choose_action(master, "Edit SSH config")
+        read_until(master, b"SSH-CONFIG-editor")
+        choose_action(master, "Close UI")
+        read_until(master, b"\x1b[?1049l")
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        for session in sessions:
+            if session["state"]["type"] == "running":
+                subprocess.check_output(node + ["kill", session["id"]], env=env)
 
 
 def exercise_ssh_retry(path):
