@@ -2,7 +2,7 @@ import { posix } from "node:path";
 import type { SessionClient } from "../protocol/client.js";
 import { validSshDestination } from "../agent/ssh-destination.js";
 
-type ForegroundSsh =
+export type ForegroundSsh =
   { type: "destination"; target: string } | { type: "unsupported" };
 
 function decodeForegroundSsh(value: unknown): ForegroundSsh | undefined {
@@ -37,10 +37,12 @@ export async function workingDirectories(
   path: string | undefined;
   reported: string | undefined;
   foregroundSsh: ForegroundSsh | undefined;
+  supportsForegroundSsh: boolean;
 }> {
   let path: string | undefined;
   let reported: string | undefined;
   let foregroundSsh: ForegroundSsh | undefined;
+  let supportsForegroundSsh = false;
   if (client.supportsWorkspaceCwd) {
     const reply = await client.request({
       type: "workspace-cwd",
@@ -51,9 +53,10 @@ export async function workingDirectories(
     path = "path" in reply ? absolutePath(reply.path) : undefined;
     reported =
       "reportedPath" in reply ? absolutePath(reply.reportedPath) : undefined;
+    supportsForegroundSsh = "foregroundSsh" in reply;
     foregroundSsh = decodeForegroundSsh(
       "foregroundSsh" in reply ? reply.foregroundSsh : undefined,
     );
   }
-  return { path, reported, foregroundSsh };
+  return { path, reported, foregroundSsh, supportsForegroundSsh };
 }

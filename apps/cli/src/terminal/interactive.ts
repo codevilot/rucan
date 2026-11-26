@@ -3,6 +3,7 @@ import { availableUpdate, skipUpdate } from "../release/updates.js";
 import { restartAfterUpdate } from "../release/restart.js";
 import { Explorer } from "../explorer/explorer.js";
 import { isViewableFile, openLocalFile } from "../explorer/open-file.js";
+import { localForegroundSsh } from "./local-foreground-ssh.js";
 import { workingDirectories } from "./working-directories.js";
 import { workspaceDirectory } from "../explorer/workspace-directory.js";
 import { setTimeout as delay } from "node:timers/promises";
@@ -262,7 +263,13 @@ class InteractiveWorkspace {
   async #new(current = this.#selected): Promise<NativeWorkspace> {
     const directories =
       current && (await workingDirectories(this.#client, current.id));
-    const foreground = directories?.foregroundSsh;
+    const foreground =
+      current?.pid &&
+      !current.sshTarget &&
+      !this.#host &&
+      !directories?.supportsForegroundSsh
+        ? await localForegroundSsh(current.pid)
+        : directories?.foregroundSsh;
     if (!current?.sshTarget && foreground?.type === "unsupported") {
       throw new Error(
         "Use an SSH config alias to open another session with the same options.",

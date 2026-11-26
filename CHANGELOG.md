@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.16
+
+- Open another SSH session to the same host when an older local agent still owns the original terminal.
+
 ## 0.1.15
 
 - Show up to four terminal panes with a drop preview, click-to-focus, and draggable dividers.
