@@ -8,7 +8,10 @@ const pathOption = "ControlPath=";
 const managedPath = /^ControlPath=\/tmp\/rucan-ssh-\d+-[a-f0-9]{16}\/%C$/u;
 
 /** OpenSSH owns the connections and expires idle masters. Rucan owns the private directory. */
-export async function sshSharingArgs(target: string): Promise<string[]> {
+export async function sshSharingArgs(
+  target: string,
+  reconnect = false,
+): Promise<string[]> {
   const uid = process.getuid?.();
   if (uid === undefined)
     throw new Error("SSH connection sharing requires Unix.");
@@ -16,6 +19,7 @@ export async function sshSharingArgs(target: string): Promise<string[]> {
     .update(localSocketPath())
     .update("\0")
     .update(target)
+    .update(reconnect ? "\0resume" : "")
     .digest("hex")
     .slice(0, 16);
   const directory = `/tmp/rucan-ssh-${uid}-${key}`;

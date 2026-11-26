@@ -32,6 +32,8 @@ The numbered workspace list contains running sessions. When the selected session
 
 Click **+** next to a workspace to open another session at that workspace's current directory. For an interactive SSH tab created through the palette or `rucan new ssh user@host`, it connects to the same destination and uses the reported directory when available. If that directory is unavailable, SSH opens in its default directory. When a shell is running a foreground `ssh user@host` command, the new tab connects to the same destination. Use an SSH config alias to reuse custom ports, identities, or jump hosts. Local SSH tabs opened by Rucan share an authenticated OpenSSH connection for the same destination. After the first login, opening another tab with **+** starts a separate remote shell over that connection. Reopen SSH connections created without sharing once to enable it. Click **BG** to pin or unpin the selected managed session.
 
+Choose **SSH connect and resume** from the local command palette when the server has tmux. Rucan keeps the local tab open and retries interrupted connections. Press Enter during the wait to retry immediately or Ctrl+C to stop. Complete the OpenSSH password prompt if it appears to return to the same remote tmux session. Each **+** tab gets its own resumable session.
+
 Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
 
 Click the pencil (✎) beside a session name to open the rename dialog. Type a new name and press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.

@@ -155,6 +155,12 @@ it("opens SSH connect from the command palette", () => {
   expect(palette.input("\r")).toEqual({ kind: "command", key: "c" });
 });
 
+it("opens the resumable SSH action from the command palette", () => {
+  const palette = new CommandPalette([], "selected", undefined, true);
+  palette.input("SSH connect and resume");
+  expect(palette.input("\r")).toEqual({ kind: "command", key: "C" });
+});
+
 it.each(["Switch host", "Manage tmux sessions", "View terminal history"])(
   "omits %s from palette search",
   (query) => {

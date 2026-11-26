@@ -28,3 +28,5 @@ A Tokio task exclusively owns each child handle and uses SIGCHLD notifications t
 The sidebar BG control changes the pin on the selected managed session. The pin is used by the keep-pinned exit policy. Choosing to close the UI and keep all sessions retains both pinned and unpinned sessions.
 
 Locally opened SSH tabs can share an authenticated OpenSSH connection. Each tab has its own remote shell and PTY. OpenSSH keeps the shared connection alive while channels are active and expires the master after 60 idle seconds. A disconnected SSH transport ends ordinary SSH channels. Remote agent and tmux sessions have their own lifecycle.
+
+**SSH connect and resume** runs a local reconnect worker in the managed PTY. Each workspace has its own remote tmux session, which owns the interactive shell. The worker retries OpenSSH transport failures with a capped delay and offers Enter to retry sooner or Ctrl+C to stop. It inherits the local PTY for password prompts. Ending the local tab stops its reconnect worker. The remote tmux session can continue until its shell exits or the tmux server stops.

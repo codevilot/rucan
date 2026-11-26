@@ -33,3 +33,5 @@ Session descriptions may include `sshTarget` for an interactive OpenSSH tab. Com
 When both peers negotiate the `workspace-cwd` capability, the client may request `workspace-cwd` with a session ID. The response contains nullable `path` and `reportedPath` fields for the PTY child process and its latest OSC 7 directory report.
 
 Workspace directory replies may include `foregroundSsh` with a validated `destination` and its `target`, or `unsupported` for a known foreground SSH process whose arguments cannot be reused. The field is optional for compatibility with older agents.
+
+Session descriptions can also include the optional boolean `sshReconnect`. A true value identifies a local resumable SSH worker. The destination stays in `sshTarget`, and the worker independently reconnects its remote tmux session.

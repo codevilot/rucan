@@ -110,9 +110,43 @@ def run():
                 exercise(node, env)
                 exercise_split_panes(node, env)
                 exercise_session_exit(node, env)
+                exercise_ssh_retry(path)
             finally:
                 agent.terminate()
                 agent.wait(timeout=5)
+
+
+def exercise_ssh_retry(path):
+    retry_bin = path / "retry-bin"
+    retry_bin.mkdir()
+    ssh = retry_bin / "ssh"
+    ssh.write_text('#!/bin/sh\nprintf "SSH-RETRY-attempt\\n"\nexit 255\n')
+    ssh.chmod(0o700)
+    env = dict(os.environ, PATH=f"{retry_bin}{os.pathsep}{os.environ['PATH']}")
+    pid, master = pty.fork()
+    if pid == 0:
+        os.execvpe("node", ["node", "apps/cli/dist/terminal/ssh-reconnect-runner.js", "fixture"], env)
+    reaped = False
+    try:
+        read_until(master, b"Reconnecting in 4s")
+        os.write(master, b"\r")
+        frame = read_until(master, b"SSH-RETRY-attempt", seconds=2)
+        if b"Reconnecting in 8s" not in frame:
+            read_until(master, b"Reconnecting in 8s")
+        os.write(master, b"\x03")
+        for _ in range(100):
+            ended, status = os.waitpid(pid, os.WNOHANG)
+            if ended:
+                reaped = True
+                assert os.waitstatus_to_exitcode(status) == 0
+                break
+            time.sleep(.025)
+        assert reaped, "SSH retry did not stop after Ctrl+C"
+    finally:
+        if not reaped:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+        os.close(master)
 
 
 def exercise(node, env):

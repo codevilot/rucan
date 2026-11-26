@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.18
+
+- Resume remote tmux shells after SSH transport interruptions, including password reauthentication.
+- Retry with a capped delay. Press Enter to retry sooner or Ctrl+C to stop.
+
 ## 0.1.17
 
 - Share an authenticated OpenSSH connection across locally opened SSH tabs.
