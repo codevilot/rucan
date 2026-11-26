@@ -143,8 +143,6 @@ def exercise(node, env):
             os.write(master, b"\x1b[<0;20;2M")
             read_until(master, label.encode())
         choose_action(master, "exit")
-        read_until(master, b"Close UI and keep all sessions")
-        os.write(master, b"\r")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
         assert termios.tcgetattr(slave) == original
@@ -199,7 +197,22 @@ def exercise_session_exit(node, env):
         frame = read_until(master, PALETTE_HINT)
         assert "›1 ◇ first-shell".encode() in frame
         assert " 3 ◇ next-shell".encode() in frame
+        assert "next-shell ✎".encode() in frame
         assert "[+] [×]".encode() in frame
+        os.write(master, b"\x1b[<0;17;5M\x1b[<0;17;5m")
+        read_until(master, b"Enter Save")
+        os.write(master, "다음".encode())
+        read_until(master, "다음▏".encode())
+        os.write(master, b"\r")
+        read_until(master, " 3 ◇ 다음 ✎".encode())
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        assert any(item["name"] == "다음" for item in sessions)
+        os.write(master, b"\x1b[<0;11;5M\x1b[<0;11;5m")
+        read_until(master, b"Enter Save")
+        os.write(master, b"next-shell")
+        read_until(master, "next-shell▏".encode())
+        os.write(master, b"\r")
+        read_until(master, " 3 ◇ next-shell ✎".encode())
         destination = shlex.quote(str(Path(env["XDG_CONFIG_HOME"]) / "project/scoped"))
         os.write(master, f"cd {destination} && printf 'SOURCE-%s\\n' ready\r".encode())
         read_until(master, b"SOURCE-ready")
@@ -230,9 +243,14 @@ def exercise_session_exit(node, env):
         os.write(master, b"printf 'NEXT-%s\\n' ready\r")
         read_until(master, b"NEXT-ready")
         os.write(master, b"exit\r")
-        read_until(master, b"No active workspace")
-        os.write(master, b"\x1b[<0;22;2M")
-        read_until(master, "›1 ◇ tty-test".encode())
+        read_until(master, b"\x1b[?1049l")
+        assert process.wait(timeout=5) == 0
+        process = subprocess.Popen(
+            node, env=env, stdin=slave, stdout=slave, stderr=slave
+        )
+        frame = read_until(master, PALETTE_HINT)
+        assert b"\x1b[?1049h" in frame
+        assert "›1 ◇ tty-test".encode() in frame
         os.write(master, b"printf 'NEW-%s\\n' ready\r")
         read_until(master, b"NEW-ready")
         os.write(master, b"\x1b ")
@@ -264,6 +282,10 @@ def exercise_session_exit(node, env):
         read_until(master, "›1 ◇ tty-test".encode())
         os.write(master, b"printf 'RIGHT-%s\\n' ready\r")
         read_until(master, b"RIGHT-ready")
+        os.write(master, b"\x1b[<0;91;3M\x1b[<0;91;3m")
+        read_until(master, b"Enter Save")
+        os.write(master, b"\x1b")
+        read_until(master, PALETTE_HINT)
         os.write(master, b"\x1b[<0;76;3M")
         frame = read_until(master, "┃".encode())
         assert b"\x1b]22;ew-resize\x1b\\" in frame

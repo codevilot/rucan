@@ -141,13 +141,9 @@ export function workspaceLabels(
 ): string[] {
   const labels = [
     "WORKSPACES",
-    ...sessions.map((workspace, index) => {
-      const selected = workspace.id === activeId ? "›" : " ";
-      const pin =
-        workspace.backend === "tmux" ? "T" : workspace.persistent ? "◆" : "◇";
-      const slot = index < 9 ? String(index + 1) : " ";
-      return `${selected}${slot} ${pin} ${workspace.name}`;
-    }),
+    ...sessions.map((workspace, index) =>
+      workspaceLabel(workspace, index, activeId),
+    ),
   ];
   for (const workspace of config.workspaces) {
     if (workspace.host) labels.push(`  ○ ${workspace.name} (SSH)`);
@@ -155,4 +151,16 @@ export function workspaceLabels(
       labels.push(`  ○ ${workspace.name} (tmux)`);
   }
   return labels;
+}
+
+export function workspaceLabel(
+  workspace: NativeWorkspace,
+  index: number,
+  activeId?: string,
+): string {
+  const selected = workspace.id === activeId ? "›" : " ";
+  const pin =
+    workspace.backend === "tmux" ? "T" : workspace.persistent ? "◆" : "◇";
+  const slot = index < 9 ? String(index + 1) : " ";
+  return `${selected}${slot} ${pin} ${workspace.name}`;
 }

@@ -11,7 +11,9 @@ stateDiagram-v2
 
 The agent creates the PTY and retains ownership across client detach, crash or SSH loss while the host leaves the daemon running. Pinning changes metadata on the same live session. A session can have multiple observers, with one explicitly granted input and resize lease.
 
-Explicit UI exit offers keep all, keep pinned, stop all managed sessions or cancel. External tmux sessions require independent ownership handling. Temporary orphan retention is opt-in and should only run when the session is unpinned and has no clients. Persisted metadata cannot resurrect a process after the agent or host stops.
+When the selected session ends, the UI switches to the next running session. When the last running session ends, the UI exits and restores the terminal's original screen.
+
+Quit Rucan closes the UI immediately and applies `defaults.on_exit`. The default and legacy `ask` setting keep all sessions. Explicit `keep-pinned` and `terminate` settings still apply to managed sessions. External tmux sessions require independent ownership handling. Temporary orphan retention is opt-in and should only run when the session is unpinned and has no clients. Persisted metadata cannot resurrect a process after the agent or host stops.
 
 Remote process survival depends on SSH detach and the host's user process cleanup policy. Detect unsupported environments and report them to the user. System policies require administrator control.
 

@@ -102,7 +102,8 @@ class InteractiveWorkspace {
   #hostTrial = 0;
   #history: TerminalSnapshot | undefined;
   #offset = 0;
-  #name = "";
+  #renameDraft:
+    { id: string; name: string; returnTo: "terminal" | "palette" } | undefined;
   #palette: CommandPalette | undefined;
   #sshTarget = "";
   #tmux: TmuxTarget[] = [];
@@ -174,6 +175,7 @@ class InteractiveWorkspace {
     let stopRefresh: (() => void) | undefined;
     try {
       await this.#select(target ?? (await this.#new()), false);
+      if (this.#stopped) return;
       unmount = mountRawInput({
         input: (events) => {
           this.#receivedInput = true;
@@ -311,6 +313,12 @@ class InteractiveWorkspace {
     );
     this.#workspaces = workspaces;
     if (
+      this.#renameDraft &&
+      !workspaces.some(({ id }) => id === this.#renameDraft?.id)
+    ) {
+      this.#finishRename();
+    }
+    if (
       this.#closeTarget &&
       !workspaces.some(({ id }) => id === this.#closeTarget?.id)
     ) {
@@ -326,6 +334,10 @@ class InteractiveWorkspace {
       if (this.#mode === "history") this.#mode = "terminal";
       if (next) {
         await this.#select(next, render);
+        return;
+      }
+      if (selected) {
+        this.#stop();
         return;
       }
     }
@@ -449,12 +461,13 @@ class InteractiveWorkspace {
           ? event.col
           : event.col - (this.#layout.cols - this.#layout.sidebar + 1);
       const action =
-        !event.release && event.button === 0
+        !event.release && event.button === 0 && event.row < this.#layout.rows
           ? sidebarActionAt(
               event.row,
               sidebarCol,
               this.#layout.sidebar,
               this.#workspaces,
+              this.#selected?.id,
             )
           : undefined;
       if (action?.type === "new") {
@@ -469,6 +482,11 @@ class InteractiveWorkspace {
       if (action?.type === "close") {
         this.#closeTarget = action.workspace;
         this.#mode = "close";
+        this.#draw();
+        return;
+      }
+      if (action?.type === "rename") {
+        this.#startRename(action.workspace.id, "terminal");
         this.#draw();
         return;
       }
@@ -550,16 +568,17 @@ class InteractiveWorkspace {
         await this.#scroll(
           Math.max(0, this.#offset - this.#layout.terminalRows),
         );
-    } else if (this.#mode === "rename") {
-      if (key === "\x1b") this.#openPalette();
+    } else if (this.#mode === "rename" && this.#renameDraft) {
+      const draft = this.#renameDraft;
+      if (key === "\x1b") this.#finishRename();
       else if (key === "\x7f")
-        this.#name = [...this.#name].slice(0, -1).join("");
-      else if (key === "\r") await this.#rename();
+        draft.name = [...draft.name].slice(0, -1).join("");
+      else if (key === "\r" && draft.name.trim()) await this.#rename(draft);
       else if (
         !/\p{Cc}/u.test(key) &&
-        Buffer.byteLength(this.#name + key) <= 128
+        Buffer.byteLength(draft.name + key) <= 128
       )
-        this.#name += key;
+        draft.name += key;
     } else if (this.#mode === "update") {
       if (key === "1") {
         if (this.#update) {
@@ -590,11 +609,6 @@ class InteractiveWorkspace {
       else if (key === "\r" && this.#tmux[this.#tmuxIndex]) {
         await this.#openTmux(this.#tmux[this.#tmuxIndex]?.id ?? null);
       }
-    } else if (this.#mode === "exit") {
-      if (key === "1" || key === "\r") await this.#exit("keep-all");
-      if (key === "2") await this.#exit("keep-pinned");
-      if (key === "3") await this.#exit("terminate");
-      if (key === "\x1b" || key === "4") this.#openPalette();
     }
     this.#draw();
   }
@@ -641,23 +655,36 @@ class InteractiveWorkspace {
     this.#draw();
   }
 
-  async #rename(): Promise<void> {
-    if (!this.#selected) return;
+  #startRename(id: string, returnTo: "terminal" | "palette"): void {
+    this.#renameDraft = { id, name: "", returnTo };
+    this.#mode = "rename";
+  }
+
+  #finishRename(): void {
+    const returnTo = this.#renameDraft?.returnTo;
+    this.#renameDraft = undefined;
+    if (returnTo === "palette") this.#openPalette();
+    else this.#mode = "terminal";
+  }
+
+  async #rename(draft: { id: string; name: string }): Promise<void> {
+    const workspace = this.#workspaces.find(({ id }) => id === draft.id);
+    if (!workspace) return;
     const renamed = {
-      ...this.#selected,
+      ...workspace,
       ...decodeWorkspace(
         await this.#client.request({
           type: "rename",
-          session: this.#selected.id,
-          name: this.#name,
+          session: draft.id,
+          name: draft.name,
         }),
       ),
     };
     this.#workspaces = this.#workspaces.map((workspace) =>
       workspace.id === renamed.id ? renamed : workspace,
     );
-    this.#selected = renamed;
-    this.#openPalette();
+    if (this.#selected?.id === renamed.id) this.#selected = renamed;
+    this.#finishRename();
   }
 
   async #scroll(offset: number): Promise<void> {
@@ -714,10 +741,10 @@ class InteractiveWorkspace {
     if (key === "d") {
       await this.#exit("keep-all");
     } else if (key === "q" || key === "Q") {
-      await this.#requestExit();
+      const policy = this.#config.defaults.on_exit;
+      await this.#exit(policy === "ask" ? "keep-all" : policy);
     } else if (key === "r" && this.#selected) {
-      this.#name = "";
-      this.#mode = "rename";
+      this.#startRename(this.#selected.id, "palette");
     } else if (key === "s" && this.#selected) {
       await this.#scroll(this.#layout.terminalRows);
       this.#mode = "history";
@@ -784,6 +811,7 @@ class InteractiveWorkspace {
   }
 
   #openPalette(): void {
+    this.#renameDraft = undefined;
     this.#palette = new CommandPalette(
       this.#workspaces,
       this.#selected?.id,
@@ -832,12 +860,6 @@ class InteractiveWorkspace {
       this.#sshTarget = (this.#sshTarget + key).slice(0, 128);
   }
 
-  async #requestExit(): Promise<void> {
-    const policy = this.#config.defaults.on_exit;
-    if (policy === "ask") this.#mode = "exit";
-    else await this.#exit(policy);
-  }
-
   async #exit(policy: ExitPolicy): Promise<void> {
     if (policy !== "keep-all") {
       for (const workspace of await listWorkspaces(this.#client)) {
@@ -876,7 +898,7 @@ class InteractiveWorkspace {
         hostIndex: this.#hostIndex,
         tmux: this.#tmux,
         tmuxIndex: this.#tmuxIndex,
-        name: this.#name,
+        name: this.#renameDraft?.name ?? "",
         offset: this.#offset,
         sshTarget: this.#sshTarget,
         closeTarget: this.#closeTarget,

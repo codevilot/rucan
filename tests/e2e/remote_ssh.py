@@ -78,8 +78,6 @@ def exercise_tmux(env):
         os.write(master, b"printf 'TMUX-%s\\n' attached\r")
         read_until(master, b"TMUX-attached")
         choose_action(master, "Quit Rucan")
-        read_until(master, b"3  Stop all Rucan-managed sessions")
-        os.write(master, b"3")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0
     finally:

@@ -15,7 +15,7 @@ const sample = `version: 1
 defaults:
   backend: native
   persistence: temporary
-  on_exit: ask
+  on_exit: keep-all
   on_disconnect: preserve
 terminal:
   scrollback_lines: 10000
