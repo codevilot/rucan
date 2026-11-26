@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.15
+
+- Show up to four terminal panes with a drop preview, click-to-focus, and draggable dividers.
+- Hide panes without closing their running sessions.
+- Open another session to the same foreground SSH destination and brighten default ANSI blue.
+- Open supported local media and PDFs from the file explorer in the default application.
+
 ## 0.1.14
 
 - Open the workspace rename dialog with the current name filled in.

@@ -235,24 +235,41 @@ impl Connection {
             .try_acquire_owned()
             .map_err(|_| "agent filesystem request limit reached")?;
         let session = self.registry.session(id)?;
-        let path = match session.pid() {
-            Some(pid)
-                if matches!(
-                    session.process_state(),
-                    crate::session::ProcessState::Running
-                ) =>
-            {
-                crate::working_directory::process_directory(pid).await
+        let foreground = session.foreground_pid();
+        let directory = async {
+            if matches!(
+                session.process_state(),
+                crate::session::ProcessState::Running
+            ) {
+                crate::working_directory::process_directory(session.pid()?).await
+            } else {
+                None
             }
-            _ => None,
         };
+        let ssh = async { crate::foreground_ssh::lookup(foreground?).await };
+        let (path, ssh) = tokio::join!(directory, ssh);
         if !matches!(
             session.process_state(),
             crate::session::ProcessState::Running
         ) {
             return Ok(json!({"path": null, "reportedPath": null}));
         }
-        Ok(json!({"path": path, "reportedPath": session.reported_directory()}))
+        let ssh = if session.foreground_pid() == foreground {
+            match ssh {
+                Some(crate::foreground_ssh::ForegroundSsh::Destination(target)) => {
+                    json!({"type": "destination", "target": target})
+                }
+                Some(crate::foreground_ssh::ForegroundSsh::Unsupported) => {
+                    json!({"type": "unsupported"})
+                }
+                None => Value::Null,
+            }
+        } else {
+            Value::Null
+        };
+        Ok(
+            json!({"path": path, "reportedPath": session.reported_directory(), "foregroundSsh": ssh}),
+        )
     }
 
     async fn handle(&mut self, mut socket: UnixStream) -> io::Result<()> {

@@ -23,6 +23,7 @@ interface WorkspaceScreenState {
   history: TerminalSnapshot | undefined;
   controlsInput: boolean;
   explorer: ReturnType<Explorer["layout"]> | undefined;
+  canOpenExplorerFile: boolean;
   hosts: readonly (string | undefined)[];
   hostIndex: number;
   tmux: readonly TmuxTarget[];
@@ -40,7 +41,12 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
     ? `${selected.name}${selected.persistent ? " ◆" : ""}`
     : "No session";
   const explorer = state.mode === "explorer" ? state.explorer : undefined;
-  const footer = footerFor(state.mode, state.offset, explorer?.canEdit);
+  const footer = footerFor(
+    state.mode,
+    state.offset,
+    explorer?.canEdit,
+    state.canOpenExplorerFile,
+  );
   if (state.mode === "update" && state.update) {
     return {
       layout: state.layout,

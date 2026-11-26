@@ -4,11 +4,12 @@ import type { TerminalSnapshot } from "./snapshot.js";
 
 export function terminalMouse(
   event: MouseEvent,
-  layout: Geometry,
+  layout: Pick<Geometry, "contentStart">,
   grid: TerminalSnapshot["grid"],
+  top = 1,
 ): Buffer | undefined {
   const col = event.col - layout.contentStart;
-  const row = event.row - 1;
+  const row = event.row - top;
   if (
     col < 1 ||
     col > grid.cols ||

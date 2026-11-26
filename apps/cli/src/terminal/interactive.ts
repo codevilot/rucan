@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import { availableUpdate, skipUpdate } from "../release/updates.js";
 import { restartAfterUpdate } from "../release/restart.js";
 import { Explorer } from "../explorer/explorer.js";
+import { isViewableFile, openLocalFile } from "../explorer/open-file.js";
 import { workingDirectories } from "./working-directories.js";
 import { workspaceDirectory } from "../explorer/workspace-directory.js";
 import { setTimeout as delay } from "node:timers/promises";
@@ -9,7 +10,7 @@ import { connectRemoteAgent } from "../agent/ssh.js";
 import { connectLocalAgent } from "../agent/local.js";
 import type { Config } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
-import type { TerminalInput } from "./input.js";
+import type { MouseEvent, TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
 import { CommandPalette, type PaletteAction } from "./palette.js";
 import { closeDialogInput } from "./close-dialog.js";
@@ -22,6 +23,14 @@ import { listTmux, openTmux, type TmuxTarget } from "./tmux.js";
 import { TerminalWatch } from "./watch.js";
 import { watchWorkspaceList } from "./workspace-refresh.js";
 import { terminalMouse } from "./mouse.js";
+import {
+  contains,
+  PaneLayout,
+  paneSize,
+  type Divider,
+  type Rect,
+} from "./panes.js";
+import { PaneWatches } from "./pane-watches.js";
 import { geometry, Screen } from "./screen.js";
 import { decodeSnapshot, type TerminalSnapshot } from "./snapshot.js";
 import {
@@ -96,6 +105,10 @@ class InteractiveWorkspace {
   readonly #connect: () => Promise<SessionClient>;
   readonly #screen = new Screen(process.stdout);
   readonly #sidebar = new SidebarLayout();
+  readonly #panes = new PaneLayout();
+  readonly #paneWatches: PaneWatches;
+  #paneDrag: { id: string; moved: boolean; preview?: Rect } | undefined;
+  #paneDivider: Divider | undefined;
   readonly #explorer: Explorer;
   #layout = geometry(process.stdout.rows || 24, process.stdout.columns || 80);
   #mode: Mode = "terminal";
@@ -135,6 +148,7 @@ class InteractiveWorkspace {
     this.#host = host;
     this.#connect = connect;
     this.#watcher = new TerminalWatch(connect);
+    this.#paneWatches = new PaneWatches(connect);
     this.#explorer = new Explorer(connect, config.explorer.exclusions, () =>
       this.#draw(),
     );
@@ -168,6 +182,8 @@ class InteractiveWorkspace {
           this.#sidebar.side,
         );
         if (!this.#layout.sidebar) this.#sidebar.cancelDrag();
+        this.#paneDrag = undefined;
+        this.#paneDivider = undefined;
         this.#draw();
         await this.#resize();
       });
@@ -225,6 +241,7 @@ class InteractiveWorkspace {
     this.#hostTrial++;
     this.#explorer.leave();
     this.#watcher.stop();
+    this.#paneWatches.stop();
     this.#resolveExit?.();
   }
 
@@ -245,13 +262,22 @@ class InteractiveWorkspace {
   async #new(current = this.#selected): Promise<NativeWorkspace> {
     const directories =
       current && (await workingDirectories(this.#client, current.id));
-    const workspace = current?.sshTarget
+    const foreground = directories?.foregroundSsh;
+    if (!current?.sshTarget && foreground?.type === "unsupported") {
+      throw new Error(
+        "Use an SSH config alias to open another session with the same options.",
+      );
+    }
+    const target =
+      current?.sshTarget ??
+      (foreground?.type === "destination" ? foreground.target : undefined);
+    const workspace = target
       ? await openSshShell(
           this.#client,
           this.#config,
           this.#layout,
-          current.sshTarget,
-          directories?.reported,
+          target,
+          current?.sshTarget ? directories?.reported : undefined,
         )
       : await createWorkspace(
           this.#client,
@@ -272,7 +298,12 @@ class InteractiveWorkspace {
     const controls = hasLease(
       await this.#client.request({ type: "attach", session: workspace.id }),
     );
-    if (previous && previous.id !== workspace.id)
+    this.#panes.select(workspace.id, previous?.id);
+    if (
+      previous &&
+      previous.id !== workspace.id &&
+      !this.#panes.view(this.#layout).panes.some(({ id }) => id === previous.id)
+    )
       await this.#client.request({ type: "detach", session: previous.id });
     this.#watcher.stop();
     this.#selected = workspace;
@@ -303,6 +334,7 @@ class InteractiveWorkspace {
       },
     );
     await this.#resize();
+    if (render) this.#draw();
   }
 
   async #refreshWorkspaces(exitedId?: string, render = true): Promise<void> {
@@ -317,6 +349,15 @@ class InteractiveWorkspace {
       selected?.id,
     );
     this.#workspaces = workspaces;
+    const runningIds = new Set(workspaces.map(({ id }) => id));
+    const closedPanes = this.#panes.ids.filter((id) => !runningIds.has(id));
+    for (const id of closedPanes) this.#panes.remove(id);
+    if (closedPanes.length) this.#paneDivider = undefined;
+    if (
+      this.#paneDrag &&
+      (closedPanes.length || !runningIds.has(this.#paneDrag.id))
+    )
+      this.#paneDrag = undefined;
     if (
       this.#renameDraft &&
       !workspaces.some(({ id }) => id === this.#renameDraft?.id)
@@ -337,8 +378,10 @@ class InteractiveWorkspace {
       this.#controlsInput = false;
       this.#status = "";
       if (this.#mode === "history") this.#mode = "terminal";
-      if (next) {
-        await this.#select(next, render);
+      const remaining = this.#panes.ids[0];
+      const replacement = workspaces.find(({ id }) => id === remaining) ?? next;
+      if (replacement) {
+        await this.#select(replacement, render);
         return;
       }
       if (selected) {
@@ -346,6 +389,7 @@ class InteractiveWorkspace {
         return;
       }
     }
+    if (closedPanes.length) await this.#resize();
     if (
       render &&
       (previous.length !== workspaces.length ||
@@ -366,6 +410,7 @@ class InteractiveWorkspace {
           return;
         }
         this.#client = client;
+        this.#paneWatches.stop();
         if (selected) await this.#select(selected);
         return;
       } catch (error) {
@@ -378,13 +423,40 @@ class InteractiveWorkspace {
   }
 
   async #resize(): Promise<void> {
-    if (!this.#controlsInput || !this.#selected?.running) return;
-    await this.#client.request({
-      type: "resize",
-      session: this.#selected.id,
-      rows: this.#layout.terminalRows,
-      cols: this.#layout.terminalCols,
-    });
+    const panes = this.#panes.view(this.#layout).panes;
+    const selected = this.#selected;
+    const pane =
+      panes.length > 1
+        ? panes.find(({ id }) => id === selected?.id)
+        : undefined;
+    if (this.#controlsInput && selected?.running) {
+      const size = pane
+        ? paneSize(pane)
+        : {
+            rows: this.#layout.terminalRows,
+            cols: this.#layout.terminalCols,
+          };
+      await this.#client.request({
+        type: "resize",
+        session: selected.id,
+        ...size,
+      });
+    }
+    await this.#paneWatches.sync(
+      this.#client,
+      panes,
+      selected?.id,
+      hasLease,
+      (id, snapshot) => {
+        if (snapshot.state !== "running") {
+          void this.#enqueue(() => this.#refreshWorkspaces(id));
+        } else this.#draw();
+      },
+      (error) => {
+        this.#status = error instanceof Error ? error.message : String(error);
+        this.#draw();
+      },
+    );
   }
 
   async #forward(bytes: Buffer): Promise<void> {
@@ -403,6 +475,15 @@ class InteractiveWorkspace {
   }
 
   async #input(event: TerminalInput): Promise<void> {
+    if (
+      this.#paneDrag &&
+      event.type === "bytes" &&
+      event.bytes.equals(Buffer.from("\x1b"))
+    ) {
+      this.#paneDrag = undefined;
+      this.#draw();
+      return;
+    }
     if (this.#mode === "rename" && this.#renameDraft) {
       await this.#renameInput(this.#renameDraft, event);
       this.#draw();
@@ -423,6 +504,8 @@ class InteractiveWorkspace {
     }
     if (event.type === "palette") {
       this.#sidebar.cancelDrag();
+      this.#paneDrag = undefined;
+      this.#paneDivider = undefined;
       if (this.#mode === "palette") this.#mode = "terminal";
       else {
         if (this.#mode === "explorer") this.#explorer.leave();
@@ -445,6 +528,7 @@ class InteractiveWorkspace {
         return;
       }
       if (this.#mode !== "terminal") return;
+      if (await this.#paneMouse(event)) return;
       if (
         event.row === this.#layout.rows &&
         event.col <= paletteShortcut.length + 10 &&
@@ -515,7 +599,9 @@ class InteractiveWorkspace {
         const workspace = this.#workspaces[event.row - 3];
         if (workspace && sidebarCol === 4 && workspace.ownership === "managed")
           await this.#pin(workspace);
-        else if (workspace) {
+        else if (workspace && sidebarCol <= 2) {
+          this.#paneDrag = { id: workspace.id, moved: false };
+        } else if (workspace) {
           this.#mode = "terminal";
           await this.#select(workspace);
         }
@@ -551,7 +637,10 @@ class InteractiveWorkspace {
       else if (key === "\x1b[B") this.#explorer.move(1);
       else if (key === "\r") this.#explorer.activate();
       else if (key === "r") this.#explorer.refresh();
-      else if (key === "o" && this.#explorer.file) {
+      else if (key === "v") {
+        const file = this.#viewableExplorerFile();
+        if (file) await openLocalFile(file);
+      } else if (key === "o" && this.#explorer.file) {
         if (!this.#explorer.canEdit)
           throw new Error(
             "Open an agent-backed remote workspace to edit this file.",
@@ -610,6 +699,83 @@ class InteractiveWorkspace {
       }
     }
     this.#draw();
+  }
+
+  async #paneMouse(event: MouseEvent): Promise<boolean> {
+    const { row, col, button, release } = event;
+    const drag = this.#paneDrag;
+    if (drag) {
+      if (release && button === 0) {
+        this.#paneDrag = undefined;
+        const workspace = this.#workspaces.find(({ id }) => id === drag.id);
+        if (workspace && drag.moved) {
+          const drop = this.#panes.drop(this.#layout, drag.id, row, col);
+          if (drop) {
+            drop.apply();
+            await this.#select(workspace);
+          }
+        } else if (
+          workspace &&
+          row === this.#workspaces.indexOf(workspace) + 3
+        ) {
+          await this.#select(workspace);
+        }
+        this.#draw();
+      } else if ((button & 35) === 32) {
+        drag.moved = true;
+        const drop = this.#panes.drop(this.#layout, drag.id, row, col);
+        if (drop) drag.preview = drop.rect;
+        else delete drag.preview;
+        this.#draw();
+      }
+      return true;
+    }
+    if (this.#paneDivider) {
+      if ((release && button === 0) || (button & 35) === 32) {
+        this.#panes.resize(this.#paneDivider, row, col);
+        if (release) {
+          this.#paneDivider = undefined;
+          await this.#resize();
+        }
+        this.#draw();
+      }
+      return true;
+    }
+    const { panes, dividers } = this.#panes.view(this.#layout);
+    if (panes.length < 2) return false;
+    const divider = dividers.find((entry) => contains(entry, row, col));
+    if (divider && !release && button === 0) {
+      this.#paneDivider = divider;
+      return true;
+    }
+    const pane = panes.find((entry) => contains(entry, row, col));
+    if (!pane) return false;
+    if (!release && button === 0) {
+      if (row === pane.y && col === pane.x + pane.width - 1) {
+        this.#panes.remove(pane.id);
+        if (pane.id === this.#selected?.id) {
+          const next = this.#panes.ids[0];
+          const workspace = this.#workspaces.find(({ id }) => id === next);
+          if (workspace) await this.#select(workspace);
+        } else await this.#resize();
+        this.#draw();
+        return true;
+      }
+      if (pane.id !== this.#selected?.id) {
+        const workspace = this.#workspaces.find(({ id }) => id === pane.id);
+        if (workspace) await this.#select(workspace);
+      }
+    }
+    if (pane.id === this.#selected?.id && this.#snapshot) {
+      const bytes = terminalMouse(
+        event,
+        { contentStart: pane.x - 1 },
+        this.#snapshot.grid,
+        pane.y,
+      );
+      if (bytes) await this.#forward(bytes);
+    }
+    return true;
   }
 
   #switchHost(host: string | undefined): void {
@@ -910,33 +1076,56 @@ class InteractiveWorkspace {
   #draw(): void {
     if (this.#stopped) return;
     const rows = this.#layout.rows - 2;
-    this.#screen.draw(
-      workspaceScreen({
-        config: this.#config,
-        mode: this.#mode,
-        host: this.#host,
-        status: this.#status,
-        update: this.#update,
-        layout: this.#layout,
-        resizingSidebar: this.#sidebar.dragging,
-        selected: this.#selected,
-        workspaces: this.#workspaces,
-        snapshot: this.#snapshot,
-        history: this.#history,
-        controlsInput: this.#controlsInput,
-        explorer:
-          this.#mode === "explorer" ? this.#explorer.layout(rows) : undefined,
-        hosts: this.#hosts,
-        hostIndex: this.#hostIndex,
-        tmux: this.#tmux,
-        tmuxIndex: this.#tmuxIndex,
-        renameName: this.#renameDraft?.name,
-        offset: this.#offset,
-        sshTarget: this.#sshTarget,
-        closeTarget: this.#closeTarget,
-        paletteLines:
-          this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,
-      }),
-    );
+    const screen = workspaceScreen({
+      config: this.#config,
+      mode: this.#mode,
+      host: this.#host,
+      status: this.#status,
+      update: this.#update,
+      layout: this.#layout,
+      resizingSidebar: this.#sidebar.dragging,
+      selected: this.#selected,
+      workspaces: this.#workspaces,
+      snapshot: this.#snapshot,
+      history: this.#history,
+      controlsInput: this.#controlsInput,
+      explorer:
+        this.#mode === "explorer" ? this.#explorer.layout(rows) : undefined,
+      canOpenExplorerFile:
+        this.#mode === "explorer" && this.#viewableExplorerFile() !== undefined,
+      hosts: this.#hosts,
+      hostIndex: this.#hostIndex,
+      tmux: this.#tmux,
+      tmuxIndex: this.#tmuxIndex,
+      renameName: this.#renameDraft?.name,
+      offset: this.#offset,
+      sshTarget: this.#sshTarget,
+      closeTarget: this.#closeTarget,
+      paletteLines:
+        this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,
+    });
+    if (this.#mode === "terminal") {
+      const { panes, dividers } = this.#panes.view(this.#layout);
+      if (panes.length > 1) {
+        screen.panes = panes.map((pane) => ({
+          pane,
+          name: this.#workspaces.find(({ id }) => id === pane.id)?.name ?? "",
+          snapshot:
+            pane.id === this.#selected?.id
+              ? this.#snapshot
+              : this.#paneWatches.snapshot(pane.id),
+          focused: pane.id === this.#selected?.id,
+        }));
+        screen.dividers = dividers;
+      }
+      if (this.#paneDrag?.preview) screen.dropPreview = this.#paneDrag.preview;
+    }
+    this.#screen.draw(screen);
+  }
+
+  #viewableExplorerFile(): string | undefined {
+    if (this.#host || this.#selected?.sshTarget) return undefined;
+    const file = this.#explorer.file;
+    return file && isViewableFile(file) ? file : undefined;
   }
 }

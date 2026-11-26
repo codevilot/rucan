@@ -181,6 +181,11 @@ impl NativeSession {
         self.pid
     }
 
+    pub(crate) fn foreground_pid(&self) -> Option<u32> {
+        let pid = lock(&self.master).as_ref()?.process_group_leader()?;
+        u32::try_from(pid).ok().filter(|&id| id != 0)
+    }
+
     pub fn process_state(&self) -> ProcessState {
         lock(&self.state).process.clone()
     }
