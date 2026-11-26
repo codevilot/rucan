@@ -12,6 +12,7 @@ import type { SessionClient } from "../protocol/client.js";
 import type { TerminalInput } from "./input.js";
 import { mountRawInput } from "./raw-input.js";
 import { CommandPalette, type PaletteAction } from "./palette.js";
+import { closeDialogInput } from "./close-dialog.js";
 import { sidebarActionAt } from "./sidebar-actions.js";
 import { SidebarLayout } from "./sidebar-layout.js";
 import { openSshShell } from "./ssh-shell.js";
@@ -92,6 +93,7 @@ class InteractiveWorkspace {
   readonly #explorer: Explorer;
   #layout = geometry(process.stdout.rows || 24, process.stdout.columns || 80);
   #mode: Mode = "terminal";
+  #closeTarget: NativeWorkspace | undefined;
   #status = "";
   #update: string | undefined;
   #result: WorkspaceResult | undefined;
@@ -306,6 +308,13 @@ class InteractiveWorkspace {
       selected?.id,
     );
     this.#workspaces = workspaces;
+    if (
+      this.#closeTarget &&
+      !workspaces.some(({ id }) => id === this.#closeTarget?.id)
+    ) {
+      this.#closeTarget = undefined;
+      this.#mode = "terminal";
+    }
     if (selected ? !workspaces.some(({ id }) => id === selected.id) : next) {
       this.#watcher.stop();
       this.#selected = undefined;
@@ -375,6 +384,19 @@ class InteractiveWorkspace {
   }
 
   async #input(event: TerminalInput): Promise<void> {
+    if (this.#mode === "close") {
+      const choice = closeDialogInput(event, this.#screen);
+      if (!choice) return;
+      const target = this.#closeTarget;
+      this.#closeTarget = undefined;
+      this.#mode = "terminal";
+      if (choice === "close" && target) {
+        await this.#client.request({ type: "kill", session: target.id });
+        await this.#refreshWorkspaces(target.id);
+      }
+      this.#draw();
+      return;
+    }
     if (event.type === "palette") {
       if (this.#mode === "palette") this.#mode = "terminal";
       else {
@@ -424,7 +446,7 @@ class InteractiveWorkspace {
               event.row,
               event.col,
               this.#layout.sidebar,
-              this.#workspaces.length,
+              this.#workspaces,
             )
           : undefined;
       if (action?.type === "new") {
@@ -434,6 +456,12 @@ class InteractiveWorkspace {
             : this.#workspaces[action.workspaceIndex];
         if (action.workspaceIndex !== undefined && !source) return;
         await this.#select(await this.#new(source));
+        return;
+      }
+      if (action?.type === "close") {
+        this.#closeTarget = action.workspace;
+        this.#mode = "close";
+        this.#draw();
         return;
       }
       if (action?.type === "background") {
@@ -838,6 +866,7 @@ class InteractiveWorkspace {
         name: this.#name,
         offset: this.#offset,
         sshTarget: this.#sshTarget,
+        closeTarget: this.#closeTarget,
         paletteLines:
           this.#mode === "palette" ? this.#palette?.lines(rows) : undefined,
       }),

@@ -1,5 +1,6 @@
 export type Mode =
   | "terminal"
+  | "close"
   | "palette"
   | "ssh"
   | "exit"
@@ -34,6 +35,8 @@ export function footerFor(
       return `Esc Palette · ↑↓ Select · Enter Expand/Preview · R Refresh${canEdit ? " · O Editor" : ""}`;
     case "exit":
       return "Esc Palette · Enter Keep all";
+    case "close":
+      return "Esc / Enter Cancel · Y Close";
     case "palette":
       return "Esc Terminal · ↑↓ Select · Enter Run";
     case "ssh":
