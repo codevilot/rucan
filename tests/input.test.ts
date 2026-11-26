@@ -34,3 +34,36 @@ it("parses split SGR mouse reports and allows lone Escape to be forwarded", () =
   expect([...router.route(Buffer.of(27))]).toEqual([]);
   expect(router.takePending()).toEqual(Buffer.of(27));
 });
+
+it.each([3, 9])(
+  "opens the palette for split CSI-u Space with modifier %i",
+  (modifier) => {
+    const router = new InputRouter();
+    expect([...router.route(Buffer.from("\x1b[32;"))]).toEqual([]);
+    expect([...router.route(Buffer.from(`${modifier}u`))]).toEqual([
+      { type: "palette" },
+    ]);
+  },
+);
+
+it("preserves shortcut bytes inside paste and forwards other CSI-u keys", () => {
+  const router = new InputRouter();
+  const shortcut = Buffer.from("\x1b[32;9u");
+  expect([
+    ...router.route(
+      Buffer.concat([
+        Buffer.from("\x1b[200~"),
+        shortcut,
+        Buffer.from("\x1b[201~"),
+      ]),
+    ),
+  ]).toEqual([
+    { type: "paste-start" },
+    { type: "bytes", bytes: shortcut },
+    { type: "paste-end" },
+  ]);
+  const controlSpace = Buffer.from("\x1b[32;5u");
+  expect([...router.route(controlSpace)]).toEqual([
+    { type: "bytes", bytes: controlSpace },
+  ]);
+});

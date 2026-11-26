@@ -1,5 +1,10 @@
 const pasteStart = Buffer.from("\x1b[200~");
 const pasteEnd = Buffer.from("\x1b[201~");
+const paletteKeys = [
+  Buffer.from("\x1b "),
+  Buffer.from("\x1b[32;3u"),
+  Buffer.from("\x1b[32;9u"),
+];
 const mouseStart = Buffer.from("\x1b[<");
 
 export interface MouseEvent {
@@ -63,14 +68,24 @@ export class InputRouter {
       let event: TerminalInput | undefined;
       let length = 1;
       let incomplete = false;
-      if (byte === 0x1b && input[index + 1] === 0x20 && !this.#paste) {
-        event = { type: "palette" };
-        length = 2;
-      } else if (byte === 0x1b) {
+      if (byte === 0x1b) {
         const remainder = input.subarray(index);
+        const paletteKey = this.#paste
+          ? undefined
+          : paletteKeys.find((key) =>
+              key
+                .subarray(0, remainder.length)
+                .equals(remainder.subarray(0, key.length)),
+            );
         const marker = this.#paste ? pasteEnd : pasteStart;
         const candidate = remainder.subarray(0, marker.length);
-        if (marker.subarray(0, candidate.length).equals(candidate)) {
+        if (paletteKey) {
+          if (remainder.length < paletteKey.length) incomplete = true;
+          else {
+            event = { type: "palette" };
+            length = paletteKey.length;
+          }
+        } else if (marker.subarray(0, candidate.length).equals(candidate)) {
           if (candidate.length < marker.length) {
             incomplete = true;
           } else {

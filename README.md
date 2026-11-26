@@ -14,7 +14,7 @@ pnpm build
 pnpm dev
 ```
 
-Type `exit` at the shell prompt to close the current shell. Open the command palette with Option+Space on macOS or Alt+Space on Linux. You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to exit immediately using `defaults.on_exit` (keep all sessions by default). The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
+Type `exit` at the shell prompt to close the current shell. Open the command palette with [Command+Space on macOS or Alt+Space on Linux and WSL](#palette-shortcuts). You can also click the palette shortcut in the footer. Search for **Close UI and keep sessions** to detach, or **Quit Rucan** to exit immediately using `defaults.on_exit` (keep all sessions by default). The first launch creates a sample at `~/.config/rucan/config.yaml` or under an absolute `XDG_CONFIG_HOME`.
 
 ```yaml
 version: 1
@@ -54,6 +54,20 @@ rucan
 Development targets macOS and Linux with Node 22 LTS and Rust stable. The initial implementation was validated on Apple Silicon. The release candidate targets AMD64 and ARM64 on both operating systems.
 
 See the [architecture](docs/architecture.md) for the client, transport and agent diagram, [security](docs/security.md) for trust boundaries and [development](docs/development.md) for build and test commands. Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md). RUCAN is licensed under [Apache-2.0](LICENSE).
+
+## Palette shortcuts
+
+- **macOS · Command+Space**. In **System Settings → Keyboard → Keyboard Shortcuts → Spotlight**, move **Show Spotlight search** to another key. Configure your terminal to send Command+Space as CSI `32;9u`. In iTerm2, add a key mapping in your profile with **Send Hex Code** and enter `0x1b 0x5b 0x33 0x32 0x3b 0x39 0x75`. Option+Space also works when the terminal sends Escape followed by Space. See [Apple’s keyboard shortcuts](https://support.apple.com/en-ie/102650) and [iTerm2 key mappings](https://iterm2.com/documentation/2.1/documentation-preferences.html).
+- **Linux and Windows via WSL · Alt+Space**. The terminal must pass the chord through. If Windows Terminal opens the window menu, add this entry to the `actions` array in `settings.json`. See [Windows Terminal send-input bindings](https://learn.microsoft.com/en-us/windows/terminal/tips-and-tricks#send-input-commands-with-a-key-binding).
+
+  ```json
+  {
+    "command": { "action": "sendInput", "input": "\u001b[32;3u" },
+    "keys": "alt+space"
+  }
+  ```
+
+The palette button in the footer also opens the command palette.
 
 ## Split the work area
 

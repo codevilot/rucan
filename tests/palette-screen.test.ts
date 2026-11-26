@@ -38,7 +38,7 @@ it("keeps one clickable command card across filtering, reopening, and resizing",
     screen.draw({
       layout,
       header: "Rucan",
-      footer: "Option+Space Palette",
+      footer: "Command+Space Palette",
       sidebarLines: ["WORKSPACES", "local-shell"],
       snapshot: undefined,
       showCursor: false,
@@ -126,7 +126,7 @@ it("ignores clicks until the current palette frame drains", async () => {
   const model = {
     layout,
     header: "Rucan",
-    footer: "Option+Space Palette",
+    footer: "Command+Space Palette",
     sidebarLines: [],
     snapshot: undefined,
     showCursor: false,

@@ -26,11 +26,13 @@ def read_until(master, marker, seconds=8):
     return data
 
 
-PALETTE_HINT = b"Option+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
+PALETTE_HINT = b"Command+Space Palette" if sys.platform == "darwin" else b"Alt+Space Palette"
+
+PALETTE_KEY = b"\x1b[32;9u" if sys.platform == "darwin" else b"\x1b[32;3u"
 
 
 def choose_action(master, query):
-    os.write(master, b"\x1b ")
+    os.write(master, PALETTE_KEY)
     read_until(master, b"Rucan commands")
     os.write(master, query.encode())
     read_until(master, f"{query}▏".encode())
@@ -506,7 +508,7 @@ def exercise_session_exit(node, env):
         read_until(master, b"RUCAN-LOCAL>")
         os.write(master, b"printf 'LOCAL-%s\\n' restored\r")
         read_until(master, b"LOCAL-restored")
-        os.write(master, b"\x1b ")
+        os.write(master, PALETTE_KEY)
         read_until(master, b"Rucan commands")
         os.write(master, b"ssh")
         read_until(master, b"SSH connect")
