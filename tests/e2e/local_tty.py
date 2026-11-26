@@ -83,7 +83,12 @@ def run():
         )
         ssh_fixture.chmod(0o700)
         editor = bin_dir / "vi"
-        editor.write_text('#!/bin/sh\nfor file do :; done\n[ -f "$file" ] || exit 2\nprintf "SSH-CONFIG-editor\\n"\nread -r input\n')
+        editor.write_text(
+            '#!/bin/sh\nfor file do :; done\n[ -f "$file" ] || exit 2\n'
+            'printf "SSH-CONFIG-editor\\n"\n'
+            'read -r input\n'
+            'if [ "$input" = save ]; then printf "Host updated-fixture\\n" >> "$file"; fi\n'
+        )
         editor.chmod(0o700)
         opener = bin_dir / ("open" if sys.platform == "darwin" else "xdg-open")
         opener.write_text('#!/bin/sh\n[ "$#" -eq 1 ] || exit 2\nprintf "%s\\n" "$1" > "$XDG_CONFIG_HOME/opened-file"\n')
@@ -143,6 +148,16 @@ def exercise_workspace_launcher(node, env, path):
         read_until(master, "saved-fixture▏".encode())
         os.write(master, b"\r")
         read_until(master, b"SSH-ALIAS-ready")
+        os.write(master, b"\x1b[<0;7;6M\x1b[<0;7;6m")
+        read_until(master, b"Edit SSH config")
+        os.write(master, b"\x1b[<0;45;9M\x1b[<0;45;9m")
+        read_until(master, b"SSH-CONFIG-editor")
+        os.write(master, b"save\r")
+        read_until(master, "›3 ◇ saved-fixtu".encode())
+        os.write(master, b"\x1b[<0;7;6M\x1b[<0;7;6m")
+        read_until(master, "SSH · updated-fixture".encode())
+        os.write(master, b"\x1b")
+        read_until(master, PALETTE_HINT)
         choose_action(master, "Edit SSH config")
         read_until(master, b"SSH-CONFIG-editor")
         choose_action(master, "Close UI")

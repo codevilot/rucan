@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.20
+
+- Open the SSH configuration editor from the new workspace chooser in the terminal work area.
+
 ## 0.1.19
 
 - Open the workspace chooser below the sidebar list to reuse the current connection or choose a saved SSH alias.

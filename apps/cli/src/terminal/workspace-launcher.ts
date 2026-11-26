@@ -1,14 +1,18 @@
 import { paletteResultCount } from "./palette-layout.js";
 
 export type WorkspaceLaunch =
-  { type: "current" } | { type: "ssh"; host: string };
+  { type: "current" } | { type: "ssh"; host: string } | { type: "edit-ssh" };
 
 export class WorkspaceLauncher {
   #index = 0;
   #query = "";
   readonly #items: { label: string; action: WorkspaceLaunch }[];
 
-  constructor(currentName: string | undefined, aliases: readonly string[]) {
+  constructor(
+    currentName: string | undefined,
+    aliases: readonly string[],
+    local: boolean,
+  ) {
     this.#items = [
       {
         label: currentName
@@ -16,6 +20,9 @@ export class WorkspaceLauncher {
           : "Local shell",
         action: { type: "current" },
       },
+      ...(local
+        ? [{ label: "Edit SSH config", action: { type: "edit-ssh" as const } }]
+        : []),
       ...aliases.map((host) => ({
         label: `SSH · ${host}`,
         action: { type: "ssh" as const, host },
