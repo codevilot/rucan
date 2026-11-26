@@ -393,6 +393,27 @@ fn ssh_target(command: &str, args: &[String]) -> Option<String> {
     if Path::new(command).file_name()?.to_str()? != "ssh" {
         return None;
     }
+    let args = match args {
+        [
+            flag,
+            master,
+            persist_flag,
+            persist,
+            path_flag,
+            path,
+            rest @ ..,
+        ] if flag == "-o"
+            && master == "ControlMaster=auto"
+            && persist_flag == "-o"
+            && persist == "ControlPersist=60"
+            && path_flag == "-o"
+            && path.starts_with("ControlPath=/tmp/rucan-ssh-")
+            && path.ends_with("/%C") =>
+        {
+            rest
+        }
+        _ => args,
+    };
     let target = match args {
         [target] => target,
         [end, target] if end == "--" => target,

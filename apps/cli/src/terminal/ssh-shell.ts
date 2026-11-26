@@ -1,5 +1,6 @@
 import type { Config } from "../config/schema.js";
 import type { SessionClient } from "../protocol/client.js";
+import { sshSharingArgs } from "./ssh-sharing.js";
 import type { Geometry } from "./screen.js";
 import { validSshDestination } from "../agent/ssh-destination.js";
 import { decodeWorkspace, type NativeWorkspace } from "./workspaces.js";
@@ -13,11 +14,13 @@ export async function openSshShell(
   config: Config,
   layout: Geometry,
   target: string,
-  directory?: string,
+  directory: string | undefined,
+  local: boolean,
 ): Promise<NativeWorkspace> {
   if (!validSshDestination(target))
     throw new Error("Enter an SSH host or user@host.");
-  const args = ["-o", "StrictHostKeyChecking=ask"];
+  const args = local ? await sshSharingArgs(target) : [];
+  args.push("-o", "StrictHostKeyChecking=ask");
   if (directory) {
     const reported = directory.split("/").map(encodeURIComponent).join("/");
     const script =

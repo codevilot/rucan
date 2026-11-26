@@ -3,6 +3,7 @@ import { open, readlink } from "node:fs/promises";
 import { basename } from "node:path";
 import { promisify } from "node:util";
 import { validSshDestination } from "../agent/ssh-destination.js";
+import { sharedSshTarget } from "./ssh-sharing.js";
 import type { ForegroundSsh } from "./working-directories.js";
 
 const run = promisify(execFile);
@@ -72,7 +73,7 @@ export async function localForegroundSsh(
         ? args[0]
         : args.length === 2 && args[0] === "--"
           ? args[1]
-          : undefined;
+          : sharedSshTarget(args);
     return executable &&
       basename(executable) === "ssh" &&
       target &&
