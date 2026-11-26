@@ -12,6 +12,7 @@ export interface NativeWorkspace {
   persistent: boolean;
   running: boolean;
   sshTarget?: string;
+  pid?: number;
 }
 
 export function decodeWorkspace(raw: unknown): NativeWorkspace {
@@ -51,6 +52,13 @@ export function decodeWorkspace(raw: unknown): NativeWorkspace {
     cwd: workspace.cwd,
     persistent: workspace.persistent,
     running: workspace.state.type === "running",
+    ...("pid" in workspace &&
+    typeof workspace.pid === "number" &&
+    Number.isSafeInteger(workspace.pid) &&
+    workspace.pid > 0 &&
+    workspace.pid <= 0x7fffffff
+      ? { pid: workspace.pid }
+      : {}),
     ...("sshTarget" in workspace &&
     typeof workspace.sshTarget === "string" &&
     validSshDestination(workspace.sshTarget)

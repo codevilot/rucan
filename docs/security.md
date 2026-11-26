@@ -19,3 +19,5 @@ Working-directory lookups use the selected PTY child and never send commands int
 When an SSH tab reports a directory, a new connection uses a quoted path in a fixed remote shell command. Host-key verification and authentication remain with OpenSSH.
 
 To open another SSH workspace, the agent may inspect the bounded arguments of the PTY foreground process. It returns only a destination or an unsupported indicator. The CLI opens the destination with its own SSH invocation and host-key verification, without replaying the foreground command or its options.
+
+With an older local agent, the CLI can check the user-owned PTY foreground group directly when creating a new session. Remote agent PIDs are excluded from local inspection, and only a validated SSH destination crosses into a new invocation.
