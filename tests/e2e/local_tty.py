@@ -215,7 +215,7 @@ def exercise_workspace_launcher(node, env, path):
     try:
         read_until(master, PALETTE_HINT)
         os.write(master, b"\x1b[<0;7;4M\x1b[<0;7;4m")
-        read_until(master, b"Current workspace")
+        read_until(master, "›  localhost".encode())
         os.write(master, b"\r")
         read_until(master, "›2 ◇ tty-test".encode())
         os.write(master, b"\x1b[<0;7;5M\x1b[<0;7;5m")
@@ -236,6 +236,16 @@ def exercise_workspace_launcher(node, env, path):
         read_until(master, PALETTE_HINT)
         choose_action(master, "Edit SSH config")
         read_until(master, b"SSH-CONFIG-editor")
+        os.write(master, b"exit\r")
+        read_until(master, "›3 ◇ saved-fixtu".encode())
+        choose_action(master, "new session")
+        read_until(master, "›  localhost".encode())
+        os.write(master, b"\r")
+        read_until(master, "›4 ◇ tty-test".encode())
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        running = [entry for entry in sessions if entry["state"]["type"] == "running"]
+        assert sum(entry.get("sshTarget") == "saved-fixture" for entry in running) == 1
+        assert sum(entry["name"] == "tty-test" and not entry.get("sshTarget") for entry in running) == 3
         choose_action(master, "Close UI")
         read_until(master, b"\x1b[?1049l")
         assert process.wait(timeout=5) == 0

@@ -50,7 +50,12 @@ import {
 
 type WorkspaceResult =
   | { type: "update"; version: string; session: string | undefined }
-  | { type: "host"; host: string | undefined; client: SessionClient };
+  | {
+      type: "host";
+      host: string | undefined;
+      client: SessionClient;
+      session?: string;
+    };
 
 type ExitPolicy = Exclude<Config["defaults"]["on_exit"], "ask">;
 type RenameDraft = {
@@ -89,6 +94,7 @@ export async function runInteractive(
     if (next?.type === "host") {
       currentHost = next.host;
       prepared = next.client;
+      target = next.session;
     }
   } while (prepared);
 }
@@ -996,10 +1002,13 @@ class InteractiveWorkspace {
     this.#mode = "terminal";
   }
 
-  async #openEditor(path: string): Promise<void> {
+  async #createEditor(
+    path: string,
+    client: SessionClient,
+  ): Promise<NativeWorkspace> {
     const editor = this.#config.explorer.editor;
-    const workspace = decodeWorkspace(
-      await this.#client.request({
+    return decodeWorkspace(
+      await client.request({
         type: "create",
         name: `Edit ${posix.basename(path).replace(/\p{Cc}/gu, "")}`,
         cwd: posix.dirname(path),
@@ -1010,6 +1019,10 @@ class InteractiveWorkspace {
         persistent: false,
       }),
     );
+  }
+
+  async #openEditor(path: string): Promise<void> {
+    const workspace = await this.#createEditor(path, this.#client);
     this.#workspaces.push(workspace);
     this.#explorer.leave();
     await this.#select(workspace);
@@ -1055,14 +1068,10 @@ class InteractiveWorkspace {
         directory.connect,
         directory.canEdit,
       );
-    } else if (key === "N") {
+    } else if (key === "n") {
       await this.#openWorkspaceLauncher();
     } else if (key === "E" && !this.#host) {
       await this.#openEditor(await ensureUserSshConfig());
-    } else if (key === "n") {
-      const workspace = await this.#new();
-      this.#mode = "terminal";
-      await this.#select(workspace);
     } else if (key === "c" || key === "C") {
       this.#sshReconnect = key === "C";
       this.#sshTarget = "";
@@ -1108,36 +1117,45 @@ class InteractiveWorkspace {
   }
 
   async #openWorkspaceLauncher(): Promise<void> {
-    const aliases = this.#host ? [] : await sshAliases();
+    const aliases = await sshAliases();
     if (this.#stopped) return;
-    this.#launcher = new WorkspaceLauncher(
-      this.#selected?.name,
-      aliases,
-      !this.#host,
-    );
+    this.#launcher = new WorkspaceLauncher(aliases);
     this.#mode = "launcher";
   }
 
   async #launchWorkspace(action: WorkspaceLaunch | undefined): Promise<void> {
     if (!action) return;
-    if (action.type === "current") {
-      const workspace = await this.#new();
-      this.#mode = "terminal";
-      await this.#select(workspace);
-    } else if (action.type === "edit-ssh") {
-      await this.#openEditor(await ensureUserSshConfig());
-    } else {
-      const workspace = await openSshShell(
-        this.#client,
-        this.#config,
-        this.#layout,
-        action.host,
-        undefined,
-        true,
-      );
+    const client = this.#host ? await connectLocalAgent() : this.#client;
+    try {
+      const workspace =
+        action.type === "local"
+          ? await createWorkspace(client, this.#config, this.#layout)
+          : action.type === "edit-ssh"
+            ? await this.#createEditor(await ensureUserSshConfig(), client)
+            : await openSshShell(
+                client,
+                this.#config,
+                this.#layout,
+                action.host,
+                undefined,
+                true,
+              );
+      if (this.#host) {
+        this.#result = {
+          type: "host",
+          host: undefined,
+          client,
+          session: workspace.id,
+        };
+        this.#stop();
+        return;
+      }
       this.#workspaces.push(workspace);
       this.#mode = "terminal";
       await this.#select(workspace);
+    } finally {
+      if (client !== this.#client && this.#result?.type !== "host")
+        client.close();
     }
   }
 

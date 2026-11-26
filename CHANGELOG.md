@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.23
+
+- Open the same workspace chooser from the sidebar and command palette, with localhost as the first option.
+- Keep the workspace row's plus button as a shortcut for another shell on the same connection.
+
 ## 0.1.22
 
 - Show the host and current folder in default sidebar names and retain explicit names when reattaching.
