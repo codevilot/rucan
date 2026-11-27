@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.28
+
+- Update default sidebar labels for foreground SSH sessions, including common connection flags.
+- Open visible terminal web addresses in the default browser on click.
+
 ## 0.1.27
 
 - Dismiss workspace dialogs with an outside click without activating controls underneath.

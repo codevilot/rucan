@@ -75,7 +75,7 @@ See the [architecture](docs/architecture.md) for the client, transport and agent
   }
   ```
 
-The palette button in the footer also opens the command palette. Drag across a terminal pane to highlight text and copy it on release. To use your terminal's native selection instead, choose **Select terminal text** in the palette. Use the keyboard shortcut to reopen the palette and choose **Resume mouse controls** to restore sidebar and pane clicks.
+The palette button in the footer also opens the command palette. Click a visible HTTP or HTTPS address to open it in your default browser. Drag across a terminal pane to highlight text and copy it on release. To use your terminal's native selection instead, choose **Select terminal text** in the palette. Use the keyboard shortcut to reopen the palette and choose **Resume mouse controls** to restore sidebar and pane clicks.
 
 ## Split the work area
 

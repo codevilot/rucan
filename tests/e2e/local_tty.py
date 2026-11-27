@@ -195,6 +195,17 @@ def exercise_large_paste(node, env):
         read_until(master, b"Copied terminal text")
         if sys.platform == "darwin":
             assert (Path(env["XDG_CONFIG_HOME"]) / "copied-text").read_bytes() == b"SELECT-demo"
+        os.write(master, b"printf '\\033[2J\\033[H%s%s\\n' 'https://' 'example.com/docs?x=1&y=2'\r")
+        address = b"https://example.com/docs?x=1&y=2"
+        read_until(master, address)
+        os.write(master, b"\x1b[<0;33;2M\x1b[<0;33;2m")
+        read_until(master, b"Opened link in default browser")
+        opened = Path(env["XDG_CONFIG_HOME"]) / "opened-file"
+        for _ in range(100):
+            if opened.exists() and opened.read_bytes().strip() == address:
+                break
+            time.sleep(0.025)
+        assert opened.read_bytes().strip() == address
         os.write(master, b"printf '\\033[?1002l\\033[?1006l'\r")
         reader = f"import hashlib, sys; print('\\rPASTE-' + hashlib.sha256(sys.stdin.buffer.read({len(payload)})).hexdigest())"
         command = f"stty raw -echo; printf 'PASTE-%s\\n' ready; sleep 0.5; python3 -c {shlex.quote(reader)}; stty sane"
@@ -738,6 +749,7 @@ def exercise_session_exit(node, env):
         foreground = shlex.quote(str(Path(env["XDG_CONFIG_HOME"]) / "foreground/ssh"))
         os.write(master, f"PS1='RUCAN-LOCAL> '; {foreground} ops@192.0.2.7\r".encode())
         read_until(master, b"FOREGROUND-SSH-ready")
+        read_until(master, "›1 ◇ 192.0.2.7".encode())
         os.write(master, b"\x1b[<0;20;3M")
         read_until(master, b"SSH-ARGV-ok")
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
@@ -746,6 +758,11 @@ def exercise_session_exit(node, env):
         read_until(master, "›1 ◇ 192.0.2.7".encode())
         os.write(master, b"\x03")
         read_until(master, b"RUCAN-LOCAL>")
+        os.write(master, f"{foreground} -p 2222 ops@192.0.2.8\r".encode())
+        read_until(master, b"FOREGROUND-SSH-ready")
+        read_until(master, "›1 ◇ 192.0.2.8".encode())
+        os.write(master, b"\x03")
+        read_until(master, "›1 ◇ loc… / proj".encode())
         os.write(master, b"printf 'LOCAL-%s\\n' restored\r")
         read_until(master, b"LOCAL-restored")
         os.write(master, PALETTE_KEY)

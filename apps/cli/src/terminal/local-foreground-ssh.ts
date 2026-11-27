@@ -47,7 +47,33 @@ async function linuxArgs(pid: number): Promise<string[]> {
   }
 }
 
-/** Inspect a local PTY only when a compatible older agent omits foreground SSH metadata. */
+function displayTarget(args: readonly string[]): string | undefined {
+  let index = 0;
+  while (index < args.length) {
+    const arg = args[index];
+    if (!arg) return undefined;
+    if (arg === "--") {
+      index++;
+      break;
+    }
+    if (!arg.startsWith("-")) break;
+    if (/^-[46qvCtTN]+$/u.test(arg)) {
+      index++;
+      continue;
+    }
+    const option = arg.slice(0, 2);
+    if (option !== "-p" && option !== "-l" && option !== "-J") return undefined;
+    const value = arg.slice(2) || args[++index];
+    if (!value || value.startsWith("-")) return undefined;
+    index++;
+  }
+  const target = args[index];
+  return index === args.length - 1 && target && validSshDestination(target)
+    ? target
+    : undefined;
+}
+
+/** Inspect the local foreground job when agent metadata lacks a usable destination. */
 export async function localForegroundSsh(
   pid: number,
 ): Promise<ForegroundSsh | undefined> {
@@ -88,11 +114,13 @@ export async function localForegroundSsh(
         : args.length === 2 && args[0] === "--"
           ? args[1]
           : sharedSshTarget(args);
-    return executable &&
-      basename(executable) === "ssh" &&
-      target &&
-      validSshDestination(target)
-      ? { type: "destination", target }
+    if (!executable || basename(executable) !== "ssh")
+      return { type: "unsupported" };
+    if (target && validSshDestination(target))
+      return { type: "destination", target };
+    const label = displayTarget(args);
+    return label
+      ? { type: "unsupported", displayTarget: label }
       : { type: "unsupported" };
   } catch {
     // The session or foreground job may have ended during inspection.
