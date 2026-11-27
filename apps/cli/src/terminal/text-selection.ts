@@ -24,6 +24,39 @@ export class TextSelection {
     return this.start.row !== this.end.row || this.start.col !== this.end.col;
   }
 
+  webAddressAtStart(): string | undefined {
+    const { area, start } = this;
+    const spans = area.grid.lines[start.row - area.y] ?? [];
+    const line = spans
+      .map(
+        ([width, text]) =>
+          text + " ".repeat(Math.max(0, width - stringWidth(text))),
+      )
+      .join("");
+    const clicked = start.col - area.x;
+    for (const match of line.matchAll(/\bhttps?:\/\/[^\s<>"'\x60]+/giu)) {
+      const text = match[0]
+        .replace(/[.,;!?}]+$/u, "")
+        .replace(/^([^([]+)[)\]]+$/u, "$1");
+      const col = stringWidth(line.slice(0, match.index));
+      if (clicked < col || clicked >= col + stringWidth(text)) continue;
+      if (text.length > 2048 || /[\p{Cc}\p{Bidi_Control}]/u.test(text))
+        return undefined;
+      try {
+        const url = new URL(text);
+        if (
+          (url.protocol === "http:" || url.protocol === "https:") &&
+          !url.username &&
+          !url.password
+        )
+          return url.href;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  }
+
   rows(): SelectedRow[] {
     const { area, start, end } = this;
     const clamp = (point: Point): Point => ({

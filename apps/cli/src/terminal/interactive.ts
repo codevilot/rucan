@@ -1,3 +1,4 @@
+import { openDefaultApplication } from "./open-default-application.js";
 import { copyMacText, TextSelection } from "./text-selection.js";
 import { usesLocationName, workspaceName } from "./workspace-name.js";
 import { posix } from "node:path";
@@ -292,19 +293,31 @@ class InteractiveWorkspace {
     return this.#jobs;
   }
 
+  async #foregroundSsh(
+    workspace: NativeWorkspace | undefined,
+    directories: Awaited<ReturnType<typeof workingDirectories>> | undefined,
+  ) {
+    const foreground = directories?.foregroundSsh;
+    if (
+      !workspace?.pid ||
+      workspace.sshTarget ||
+      this.#host ||
+      foreground?.type === "destination" ||
+      (directories?.supportsForegroundSsh &&
+        workspace.sshReconnect !== undefined &&
+        !foreground)
+    )
+      return foreground;
+    return (await localForegroundSsh(workspace.pid)) ?? foreground;
+  }
+
   async #new(current = this.#selected): Promise<NativeWorkspace> {
     const directories =
       current && (await workingDirectories(this.#client, current.id));
-    const foreground =
-      current?.pid &&
-      !current.sshTarget &&
-      !this.#host &&
-      (!directories?.supportsForegroundSsh ||
-        (current.sshReconnect === undefined && !directories.foregroundSsh) ||
-        directories.foregroundSsh?.type === "unsupported")
-        ? ((await localForegroundSsh(current.pid)) ??
-          directories?.foregroundSsh)
-        : directories?.foregroundSsh;
+    const foreground = await this.#foregroundSsh(
+      current,
+      directories || undefined,
+    );
     if (!current?.sshTarget && foreground?.type === "unsupported") {
       throw new Error(
         "Use an SSH config alias to open another session with the same options.",
@@ -407,10 +420,12 @@ class InteractiveWorkspace {
       workspace.id,
     ).catch(() => undefined);
     if (!directories) return;
-    const foreground = directories.foregroundSsh;
+    const foreground = await this.#foregroundSsh(workspace, directories);
     const target =
       workspace.sshTarget ??
-      (foreground?.type === "destination" ? foreground.target : undefined);
+      (foreground?.type === "destination"
+        ? foreground.target
+        : foreground?.displayTarget);
     const host =
       (workspace.sshTarget ? directories.reportedAddress : undefined) ??
       target ??
@@ -894,6 +909,13 @@ class InteractiveWorkspace {
       this.#selection = undefined;
       selection.end = event;
       if (!selection.moved) {
+        const address = selection.webAddressAtStart();
+        if (address) {
+          await openDefaultApplication(address);
+          this.#status = "Opened link in default browser";
+          this.#draw();
+          return true;
+        }
         await this.#input({ ...event, release: false }, true);
         await this.#input(event, true);
       } else {

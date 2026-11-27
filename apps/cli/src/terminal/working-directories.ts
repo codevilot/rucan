@@ -5,7 +5,7 @@ import { validSshDestination } from "../agent/ssh-destination.js";
 
 export type ForegroundSsh =
   | { type: "destination"; target: string; reconnect?: true }
-  | { type: "unsupported" };
+  | { type: "unsupported"; displayTarget?: string };
 
 function decodeForegroundSsh(value: unknown): ForegroundSsh | undefined {
   if (value === undefined || value === null) return undefined;

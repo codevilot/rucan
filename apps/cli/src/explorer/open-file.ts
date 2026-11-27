@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { openDefaultApplication } from "../terminal/open-default-application.js";
 import { lstat, realpath } from "node:fs/promises";
 import { extname, isAbsolute } from "node:path";
 
@@ -54,19 +54,5 @@ export async function openLocalFile(path: string): Promise<void> {
       "Only regular, non-executable media and PDF files can open.",
     );
 
-  const opener = process.platform === "darwin" ? "open" : "xdg-open";
-  await new Promise<void>((resolve, reject) => {
-    // The desktop opener can stay alive while its application is running.
-    const child = spawn(opener, [resolved], {
-      detached: true,
-      stdio: "ignore",
-    });
-    child.once("error", () =>
-      reject(new Error("Could not start the default application launcher.")),
-    );
-    child.once("spawn", () => {
-      child.unref();
-      resolve();
-    });
-  });
+  await openDefaultApplication(resolved);
 }
