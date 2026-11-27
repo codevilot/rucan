@@ -5,7 +5,7 @@ import { validSshDestination } from "../agent/ssh-destination.js";
 
 export interface NativeWorkspace {
   name: string;
-  customName?: true;
+  customName?: boolean;
   location?: { host: string; path?: string };
   id: string;
   cwd: string;
@@ -49,8 +49,8 @@ export function decodeWorkspace(raw: unknown): NativeWorkspace {
     throw new Error("Invalid agent workspace");
   return {
     name: workspace.name,
-    ...("customName" in workspace && workspace.customName === true
-      ? { customName: true as const }
+    ...("customName" in workspace && typeof workspace.customName === "boolean"
+      ? { customName: workspace.customName }
       : {}),
     backend: workspace.backend,
     ownership: workspace.ownership,

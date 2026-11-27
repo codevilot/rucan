@@ -124,6 +124,7 @@ class InteractiveWorkspace {
   readonly #explorer: Explorer;
   #layout = geometry(process.stdout.rows || 24, process.stdout.columns || 80);
   #mode: Mode = "terminal";
+  #textSelection = false;
   #closeTarget: NativeWorkspace | undefined;
   #status = "";
   #watchStatus = "";
@@ -406,7 +407,11 @@ class InteractiveWorkspace {
     const target =
       workspace.sshTarget ??
       (foreground?.type === "destination" ? foreground.target : undefined);
-    const host = target ?? this.#host ?? "localhost";
+    const host =
+      (workspace.sshTarget ? directories.reportedAddress : undefined) ??
+      target ??
+      this.#host ??
+      "localhost";
     const path = workspace.sshTarget
       ? directories.reported
       : target
@@ -1133,6 +1138,9 @@ class InteractiveWorkspace {
         directory.connect,
         directory.canEdit,
       );
+    } else if (key === "x") {
+      this.#textSelection = !this.#textSelection;
+      this.#mode = "terminal";
     } else if (key === "n") {
       await this.#openWorkspaceLauncher();
     } else if (key === "E" && !this.#host) {
@@ -1177,6 +1185,7 @@ class InteractiveWorkspace {
       this.#layout.sidebar > 0,
       this.#sidebar.side,
       !this.#host,
+      this.#textSelection,
     );
     this.#mode = "palette";
   }
@@ -1319,6 +1328,9 @@ class InteractiveWorkspace {
             ? this.#launcher?.lines(rows)
             : undefined,
     });
+    screen.textSelection = this.#textSelection;
+    if (this.#textSelection && this.#mode === "terminal")
+      screen.footer += " · Text selection";
     if (this.#mode === "terminal") {
       const { panes, dividers } = this.#panes.view(this.#layout);
       if (panes.length > 1) {

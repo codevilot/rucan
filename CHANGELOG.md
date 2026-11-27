@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.25
+
+- Label unnamed sidebar sessions with the address and current folder, including shells opened with the row's plus button.
+- Toggle terminal-native drag selection from the command palette.
+- Add an illustrated workspace guide.
+
 ## 0.1.24
 
 - Keep retrying agent connections after a timeout and open the last workspace selected while offline.

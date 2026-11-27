@@ -4,7 +4,15 @@
 
 Open a shell and decide later whether to keep it running. The native agent owns each session from the start and keeps it alive across client disconnects. Native sessions require no tmux. Agents and host reboots end the lifetime of the running processes.
 
-## Try the local workspace
+![Three terminal sessions arranged in Rucan's split work area](docs/images/split-workspace.png)
+
+```sh
+npx --prefer-online rucan@latest
+```
+
+Follow the [illustrated workspace guide](docs/workspaces.md) to arrange terminal panes, edit SSH aliases, and resume remote work.
+
+## Run from source
 
 The current build opens a native local shell, discovers running sessions, and supports pinning, switching, detaching and reattaching. The same interface opens SSH sessions and explores local or remote files. The optional tmux backend discovers existing sessions without taking ownership of them.
 
@@ -38,13 +46,13 @@ The **+ New workspace** row below the sidebar session list opens a chooser. Sele
 
 Choose **×** on a Rucan-managed workspace row to review and confirm closing that session.
 
-Default sidebar names show the host and final directory component, such as `localhost/project` or `build-box/app`. The selected workspace updates as its directory changes. Click the pencil (✎) beside a session name to open the rename dialog and replace the automatic label. Type a new name and press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
+Default sidebar names show the host and final directory component, such as `[localhost] / project` or `[192.0.2.7] / app`. Managed SSH tabs show the server IP when reported by the shell. Until then, the address comes from the SSH destination. New shells opened with the row's **+** use an automatic label even when the source has a custom name. The selected workspace updates as its directory changes. Click the pencil (✎) beside a session name to open the rename dialog and replace the automatic label. Type a new name and press Enter to save or Esc to cancel. Drag the sidebar divider to resize it. The divider highlights while dragging, and compatible terminals show a horizontal resize pointer. Use the palette to hide the sidebar, show it, or move it to the other side.
 
 **Browse files** opens the selected session's current directory on its host. Select a supported local video, audio file, image, or PDF and press `V` to open it in the system's default application. A plain SSH tab needs the remote shell to report its directory and a reachable agent on the destination.
 
 Inside a managed shell, run `rucan` to see session commands. Use `npx rucan@latest` if you run Rucan through npm without a global installation.
 
-`pnpm dev config` validates the configuration and prints its path. The npm package installs the `rucan` command. After the first release:
+`pnpm dev config` validates the configuration and prints its path. The npm package also supports a global installation:
 
 ```sh
 npm install -g rucan
@@ -67,7 +75,7 @@ See the [architecture](docs/architecture.md) for the client, transport and agent
   }
   ```
 
-The palette button in the footer also opens the command palette.
+The palette button in the footer also opens the command palette. To copy text with your terminal's normal drag selection, choose **Select terminal text** in the palette. Use the keyboard shortcut to reopen the palette and choose **Resume mouse controls** to restore sidebar and pane clicks.
 
 ## Split the work area
 

@@ -43,12 +43,24 @@ pub(crate) async fn process_directory(pid: u32) -> Option<String> {
     .ok()?
 }
 
-pub(crate) fn osc_directory(params: &[&[u8]]) -> Option<String> {
+#[derive(Clone)]
+pub(crate) struct ReportedDirectory {
+    pub path: String,
+    pub address: Option<std::net::IpAddr>,
+}
+
+pub(crate) fn osc_directory(params: &[&[u8]]) -> Option<ReportedDirectory> {
     let [b"7", value] = params else {
         return None;
     };
     let uri = std::str::from_utf8(value).ok()?.strip_prefix("file://")?;
-    let slash = uri.find('/')?;
+    let (authority, _) = uri.split_once('/')?;
+    let address = authority
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse()
+        .ok();
+    let slash = authority.len();
     let path = &uri.as_bytes()[slash..];
     if path.len() > 4096 {
         return None;
@@ -63,9 +75,8 @@ pub(crate) fn osc_directory(params: &[&[u8]]) -> Option<String> {
             byte
         });
     }
-    String::from_utf8(decoded)
-        .ok()
-        .filter(|path| !path.chars().any(char::is_control))
+    let path = String::from_utf8(decoded).ok()?;
+    (!path.chars().any(char::is_control)).then_some(ReportedDirectory { path, address })
 }
 
 #[cfg(test)]
@@ -75,9 +86,13 @@ mod tests {
     #[test]
     fn accepts_absolute_file_reports_and_rejects_controls() {
         assert_eq!(
-            osc_directory(&[b"7", b"file://host/home/user/My%20Project"]).as_deref(),
+            osc_directory(&[b"7", b"file://host/home/user/My%20Project"])
+                .as_ref()
+                .map(|directory| directory.path.as_str()),
             Some("/home/user/My Project")
         );
+        let report = osc_directory(&[b"7", b"file://[2001:db8::1]/project"]).unwrap();
+        assert_eq!(report.address.unwrap().to_string(), "2001:db8::1");
         for uri in [
             b"file://host/no%1b".as_slice(),
             b"file://host/incomplete%",

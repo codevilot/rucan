@@ -21,11 +21,12 @@ export function usesLocationName(
 ): boolean {
   return (
     workspace.backend === "native" &&
-    !workspace.customName &&
-    (defaultShellNames.has(workspace.name) ||
-      workspace.name === workspace.sshTarget ||
-      (workspace.name === "ssh" && workspace.sshTarget !== undefined) ||
-      workspace.name === agentHost)
+    (workspace.customName === false ||
+      (workspace.customName === undefined &&
+        (defaultShellNames.has(workspace.name) ||
+          workspace.name === workspace.sshTarget ||
+          (workspace.name === "ssh" && workspace.sshTarget !== undefined) ||
+          workspace.name === agentHost)))
   );
 }
 
@@ -35,8 +36,10 @@ export function workspaceName(
   width?: number,
 ): string {
   if (!usesLocationName(workspace, agentHost)) return workspace.name;
-  const host =
+  const destination =
     workspace.location?.host ?? workspace.sshTarget ?? agentHost ?? "localhost";
+  const host = destination.split("@").at(-1) ?? destination;
+  const address = "[" + host + "]";
   const path = workspace.location
     ? workspace.location.path
     : workspace.sshTarget
@@ -46,19 +49,21 @@ export function workspaceName(
     path && posix.isAbsolute(path)
       ? (posix.basename(path) || "/").replace(/\p{Cc}/gu, "")
       : undefined;
-  if (!folder) return host;
-  const suffix = folder === "/" ? "/" : "/" + folder;
-  if (width === undefined || stringWidth(host + suffix) <= width)
-    return host + suffix;
-  if (width < 5) return fit(host + suffix, width);
+  if (!folder) return address;
+  const separator = " / ";
+  const full = address + separator + folder;
+  if (width === undefined || stringWidth(full) <= width) return full;
+  if (width < 8) return fit(full, width);
+  const remaining = width - 2 - separator.length;
   const hostLength = stringWidth(host);
   const folderWidth = Math.min(
-    stringWidth(suffix),
-    width - hostLength >= 4 ? width - hostLength : Math.floor(width / 2),
+    stringWidth(folder),
+    remaining - hostLength >= 3
+      ? remaining - hostLength
+      : Math.floor(remaining / 2),
   );
-  const hostWidth = width - folderWidth;
-  return (
-    (stringWidth(host) > hostWidth ? fit(host, hostWidth - 1) + "…" : host) +
-    fit(suffix, folderWidth)
-  );
+  const hostWidth = remaining - folderWidth;
+  const shortHost =
+    hostLength > hostWidth ? fit(host, hostWidth - 1) + "…" : host;
+  return "[" + shortHost + "]" + separator + fit(folder, folderWidth);
 }

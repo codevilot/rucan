@@ -267,9 +267,13 @@ impl Connection {
         } else {
             Value::Null
         };
-        Ok(
-            json!({"path": path, "reportedPath": session.reported_directory(), "foregroundSsh": ssh}),
-        )
+        let report = session.reported_directory();
+        Ok(json!({
+            "path": path,
+            "reportedPath": report.as_ref().map(|directory| &directory.path),
+            "reportedAddress": report.and_then(|directory| directory.address),
+            "foregroundSsh": ssh,
+        }))
     }
 
     async fn handle(&mut self, mut socket: UnixStream) -> io::Result<()> {
