@@ -42,6 +42,7 @@ export class CommandPalette {
     private readonly sidebarVisible: boolean,
     private readonly sidebarSide: "left" | "right" = "left",
     private readonly local = true,
+    private readonly textSelection = false,
   ) {}
 
   #matches(): PaletteEntry[] {
@@ -67,6 +68,15 @@ export class CommandPalette {
       {
         key: "b",
         label: this.sidebarVisible ? "Hide sidebar" : "Show sidebar",
+      },
+      {
+        key: "x",
+        label: this.textSelection
+          ? "Resume mouse controls"
+          : "Select terminal text",
+        keywords: this.textSelection
+          ? "text selection drag"
+          : "copy drag mouse",
       },
       {
         key: "m",

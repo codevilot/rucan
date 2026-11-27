@@ -65,6 +65,7 @@ export interface ScreenModel {
   footer: string;
   sidebarLines: readonly string[];
   resizingSidebar?: boolean;
+  textSelection?: boolean;
   contentLines?: readonly string[];
   paletteLines?: readonly string[];
   snapshot: TerminalSnapshot | undefined;
@@ -204,15 +205,16 @@ export class Screen {
       output += modes;
       this.#keyModes = modes;
     }
-    const mouse =
-      grid?.mouse === "any-motion"
+    const mouse = model.textSelection
+      ? "off"
+      : grid?.mouse === "any-motion"
         ? "1003"
         : layout.sidebar > 0 || panes?.length || grid?.mouse === "button-motion"
           ? "1002"
           : "1000";
     if (mouse !== this.#mouseMode) {
-      output +=
-        "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006h" + `\x1b[?${mouse}h`;
+      output += "\x1b[?1000l\x1b[?1002l\x1b[?1003l";
+      output += mouse === "off" ? "\x1b[?1006l" : `\x1b[?1006h\x1b[?${mouse}h`;
       this.#mouseMode = mouse;
     }
     this.#previous = lines;

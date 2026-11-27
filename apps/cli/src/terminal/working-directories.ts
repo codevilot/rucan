@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { posix } from "node:path";
 import type { SessionClient } from "../protocol/client.js";
 import { validSshDestination } from "../agent/ssh-destination.js";
@@ -37,11 +38,13 @@ export async function workingDirectories(
 ): Promise<{
   path: string | undefined;
   reported: string | undefined;
+  reportedAddress: string | undefined;
   foregroundSsh: ForegroundSsh | undefined;
   supportsForegroundSsh: boolean;
 }> {
   let path: string | undefined;
   let reported: string | undefined;
+  let reportedAddress: string | undefined;
   let foregroundSsh: ForegroundSsh | undefined;
   let supportsForegroundSsh = false;
   if (client.supportsWorkspaceCwd) {
@@ -54,10 +57,22 @@ export async function workingDirectories(
     path = "path" in reply ? absolutePath(reply.path) : undefined;
     reported =
       "reportedPath" in reply ? absolutePath(reply.reportedPath) : undefined;
+    if (
+      "reportedAddress" in reply &&
+      typeof reply.reportedAddress === "string" &&
+      isIP(reply.reportedAddress)
+    )
+      reportedAddress = reply.reportedAddress;
     supportsForegroundSsh = "foregroundSsh" in reply;
     foregroundSsh = decodeForegroundSsh(
       "foregroundSsh" in reply ? reply.foregroundSsh : undefined,
     );
   }
-  return { path, reported, foregroundSsh, supportsForegroundSsh };
+  return {
+    path,
+    reported,
+    reportedAddress,
+    foregroundSsh,
+    supportsForegroundSsh,
+  };
 }

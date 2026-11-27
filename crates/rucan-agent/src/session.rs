@@ -190,7 +190,7 @@ impl NativeSession {
         lock(&self.state).process.clone()
     }
 
-    pub(crate) fn reported_directory(&self) -> Option<String> {
+    pub(crate) fn reported_directory(&self) -> Option<crate::working_directory::ReportedDirectory> {
         lock(&self.state)
             .terminal
             .callbacks()

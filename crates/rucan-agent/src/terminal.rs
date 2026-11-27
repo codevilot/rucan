@@ -109,7 +109,7 @@ impl Grid {
 /// Replies go back to the child PTY. Escape requests never reach the outer terminal.
 pub(crate) struct TerminalReplies {
     pub input: crate::session::PtyInput,
-    pub reported_directory: Option<String>,
+    pub reported_directory: Option<crate::working_directory::ReportedDirectory>,
 }
 
 impl TerminalReplies {
