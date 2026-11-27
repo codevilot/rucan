@@ -1,4 +1,6 @@
+import type { SelectedRow } from "./text-selection.js";
 import {
+  fit,
   renderFooter,
   renderHeader,
   renderPaletteLine,
@@ -66,6 +68,7 @@ export interface ScreenModel {
   sidebarLines: readonly string[];
   resizingSidebar?: boolean;
   textSelection?: boolean;
+  selectedRows?: readonly SelectedRow[];
   contentLines?: readonly string[];
   paletteLines?: readonly string[];
   snapshot: TerminalSnapshot | undefined;
@@ -167,6 +170,16 @@ export class Screen {
             contentWidth,
             snapshot?.grid.lines[row],
           );
+      const selection = model.selectedRows?.find(
+        ({ row }) => row === terminalRow,
+      );
+      if (selection?.text)
+        line +=
+          move(terminalRow, selection.col) +
+          reset +
+          "\x1b[7m" +
+          fit(selection.text, layout.cols - selection.col + 1) +
+          reset;
       if (dropPreview) line += renderDropPreview(terminalRow, dropPreview);
       if (rightSidebar && layout.sidebar > 0)
         line += move(row + 2, contentEnd + 1) + sidebar;
@@ -209,9 +222,7 @@ export class Screen {
       ? "off"
       : grid?.mouse === "any-motion"
         ? "1003"
-        : layout.sidebar > 0 || panes?.length || grid?.mouse === "button-motion"
-          ? "1002"
-          : "1000";
+        : "1002";
     if (mouse !== this.#mouseMode) {
       output += "\x1b[?1000l\x1b[?1002l\x1b[?1003l";
       output += mouse === "off" ? "\x1b[?1006l" : `\x1b[?1006h\x1b[?${mouse}h`;
@@ -241,6 +252,10 @@ export class Screen {
     }
     this.#blocked = !this.#output.write(output);
     if (this.#blocked) this.#output.once("drain", this.#onDrain);
+  }
+
+  copyText(text: string): void {
+    this.#output.write(`\x1b]52;c;${Buffer.from(text).toString("base64")}\x07`);
   }
 
   leave(): void {

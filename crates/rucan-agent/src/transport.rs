@@ -75,7 +75,7 @@ fn negotiate(payload: &[u8]) -> Reply {
         Reply::Welcome {
             version: VERSION,
             max_frame_bytes: MAX_FRAME_BYTES,
-            capabilities: ["native-session", "workspace-cwd"]
+            capabilities: ["native-session", "workspace-cwd", "large-input"]
                 .into_iter()
                 .filter(|capability| names.iter().any(|name| name.as_str() == *capability))
                 .collect(),
@@ -415,12 +415,16 @@ impl Connection {
                 };
                 let id = u32::from_be_bytes(header[..4].try_into().expect("four-byte request ID"));
                 let session = Uuid::from_slice(&header[4..]).expect("sixteen-byte UUID");
-                let result = self
-                    .registry
-                    .controller(self.id, session)
-                    .ok_or_else(|| "attachment does not own the input lease".to_owned())
-                    .and_then(|native| native.write_input(input).map_err(|error| error.to_string()))
-                    .map(|()| Value::Null);
+                let result = match self.registry.controller(self.id, session) {
+                    Some(native) => native
+                        .enqueue_input(input, || {
+                            self.registry.controller(self.id, session).is_some()
+                        })
+                        .await
+                        .map(|()| Value::Null)
+                        .map_err(|error| error.to_string()),
+                    None => Err("attachment does not own the input lease".to_owned()),
+                };
                 (id, result)
             }
             _ => {

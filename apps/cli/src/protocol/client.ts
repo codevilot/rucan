@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { once } from "node:events";
 import { createConnection } from "node:net";
 import type { Duplex } from "node:stream";
@@ -20,6 +21,7 @@ export class SessionClient {
   #requestId = 0;
   #pending = false;
   #workspaceCwd = false;
+  #maxInputBytes = 8192;
 
   private constructor(socket: Duplex) {
     this.#socket = socket;
@@ -53,7 +55,7 @@ export class SessionClient {
             type: "hello",
             minVersion: 1,
             maxVersion: 1,
-            capabilities: ["native-session", "workspace-cwd"],
+            capabilities: ["native-session", "workspace-cwd", "large-input"],
           }),
         ),
         deadline,
@@ -72,6 +74,8 @@ export class SessionClient {
         throw new Error("Invalid agent negotiation response");
       }
       client.#workspaceCwd = reply.capabilities.includes("workspace-cwd");
+      if (reply.capabilities.includes("large-input"))
+        client.#maxInputBytes = 32768;
       return client;
     } catch (error) {
       client.close();
@@ -150,13 +154,34 @@ export class SessionClient {
     if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(session)) {
       throw new Error("Invalid session ID");
     }
-    if (input.length > 8192) throw new Error("Input chunk exceeds 8192 bytes");
+    if (input.length > this.#maxInputBytes)
+      throw new Error(`Input chunk exceeds ${this.#maxInputBytes} bytes`);
     const id = (this.#requestId = (this.#requestId + 1) >>> 0);
     const payload = Buffer.allocUnsafe(20 + input.length);
     payload.writeUInt32BE(id);
     payload.set(Buffer.from(session.replaceAll("-", ""), "hex"), 4);
     payload.set(input, 20);
-    await this.#request(id, 2, payload);
+    const retryUntil = performance.now() + 8000;
+    let wait = 10;
+    for (;;) {
+      try {
+        await this.#request(id, 2, payload);
+        return;
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          error.message !== "PTY input queue full" ||
+          performance.now() >= retryUntil
+        )
+          throw error;
+        await delay(wait);
+        wait = Math.min(wait * 2, 100);
+      }
+    }
+  }
+
+  get maxInputBytes(): number {
+    return this.#maxInputBytes;
   }
 
   get closed(): boolean {

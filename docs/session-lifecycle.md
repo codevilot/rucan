@@ -25,7 +25,7 @@ After an agent request times out, the UI keeps the last screen visible and retri
 
 The local agent now owns native PTYs across Unix socket connections. The first controller owns the input and resize lease, and later connections can observe. Closing the controlling connection releases its lease while preserving the running child. Temporary and persistent sessions both survive disconnect. Startup lock ownership prevents competing agents from claiming the same private socket.
 
-A Tokio task exclusively owns each child handle and uses SIGCHLD notifications to reap it. This avoids races between a reaper and a termination request using a recycled PID. Dedicated bounded input workers keep blocked PTY writes off the connection loop. The terminal parser processes output with a bounded scrollback even when watchers are absent.
+A Tokio task exclusively owns each child handle and uses SIGCHLD notifications to reap it. This avoids races between a reaper and a termination request using a recycled PID. A dedicated writer thread drains each PTY's bounded input queue. An input request can wait for queue space on its own connection while other connections remain responsive. The terminal parser processes output with a bounded scrollback even when watchers are absent.
 
 An explicit workspace rename lives in the agent session metadata. It remains after reattaching to the same live session and takes precedence over the automatic host and folder label.
 

@@ -49,8 +49,12 @@ export class InputRouter {
   #paste = false;
   #tail = Buffer.alloc(0);
 
+  get pasting(): boolean {
+    return this.#paste;
+  }
+
   get hasPending(): boolean {
-    return this.#tail.length > 0;
+    return !this.#paste && this.#tail.length > 0;
   }
 
   takePending(): Buffer {
