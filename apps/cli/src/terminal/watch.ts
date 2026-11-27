@@ -28,7 +28,8 @@ export class TerminalWatch {
     const active = (): boolean => this.#generation === generation;
     void (async () => {
       let snapshot = initial;
-      for (const wait of [0, 150, 350, 900]) {
+      let wait = 0;
+      while (active()) {
         if (wait) await delay(wait);
         if (!active()) return;
         let connection: SessionClient | undefined;
@@ -51,6 +52,7 @@ export class TerminalWatch {
               session: id,
               after: snapshot.sequence,
             });
+            wait = 0;
             if (raw === null || !active()) continue;
             snapshot = decodeSnapshot(raw, snapshot);
             onSnapshot(snapshot);
@@ -59,6 +61,7 @@ export class TerminalWatch {
         } catch (error) {
           if (!active()) return;
           onError(error);
+          wait = Math.min(wait ? wait * 2 : 1000, 15000);
         } finally {
           connection?.close();
         }

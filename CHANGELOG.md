@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.24
+
+- Keep retrying agent connections after a timeout and open the last workspace selected while offline.
+- Restore terminal output and reclaim input when the other client releases the lease.
+
 ## 0.1.23
 
 - Open the same workspace chooser from the sidebar and command palette, with localhost as the first option.
