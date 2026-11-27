@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.26
+
+- Batch large pastes and wait for space in the PTY input queue.
+- Copy text by dragging in terminal panes, including mouse-enabled applications.
+- Remove brackets from automatic workspace names and restore them by saving a blank custom name.
+
 ## 0.1.25
 
 - Label unnamed sidebar sessions with the address and current folder, including shells opened with the row's plus button.

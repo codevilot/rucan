@@ -140,7 +140,7 @@ export function workspaceScreen(state: WorkspaceScreenState): ScreenModel {
                     "Rename workspace",
                     `${state.renameName}▏`,
                     "  Cancel",
-                    "  Save",
+                    "  Save · Blank restores automatic name",
                   ],
                 }
               : (state.mode === "palette" || state.mode === "launcher") &&

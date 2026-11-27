@@ -16,7 +16,7 @@ Click **+ New workspace** at the bottom of the sidebar. Select **localhost** to 
 
 ![New workspace chooser listing localhost, Edit SSH config, and two example SSH aliases](images/workspace-chooser.png)
 
-The **+** beside a workspace opens another shell on the same connection. Its sidebar label starts as an address and folder, such as `[localhost] / project`. Rucan uses the current directory when it can determine it. For a local Rucan-managed SSH tab, the new shell can share the authenticated OpenSSH connection for that destination.
+The **+** beside a workspace opens another shell on the same connection. Its sidebar label starts as an address and folder, such as `localhost / project`. Rucan uses the current directory when it can determine it. For a local Rucan-managed SSH tab, the new shell can share the authenticated OpenSSH connection for that destination.
 
 ## Arrange terminals side by side
 
@@ -45,4 +45,4 @@ For network interruptions, use **SSH connect and resume** from the local command
 | Close the interface and keep sessions | Choose **Close UI and keep sessions** in the palette. Reopen Rucan to find the running sessions.                                        |
 | End the focused shell                 | Run `exit` in the shell. Closing the last session restores the original terminal screen.                                                |
 
-Open the palette with **Option+Space** on macOS or **Alt+Space** on Linux. You can also click its shortcut in the footer. To copy text with your terminal's normal drag selection, choose **Select terminal text**, then **Resume mouse controls** from the keyboard palette when done. Native sessions depend on their agent and host staying up. Split placement belongs to the current UI run.
+Open the palette with **Option+Space** on macOS or **Alt+Space** on Linux. You can also click its shortcut in the footer. Drag across a terminal pane to copy text. For your terminal's native selection, choose **Select terminal text**, then **Resume mouse controls** from the keyboard palette when done. Native sessions depend on their agent and host staying up. Split placement belongs to the current UI run.

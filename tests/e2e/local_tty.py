@@ -1,5 +1,7 @@
 """Exercise the compiled local workspace against real PTYs and Vim."""
+import base64
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -132,6 +134,9 @@ def run():
         opener = bin_dir / ("open" if sys.platform == "darwin" else "xdg-open")
         opener.write_text('#!/bin/sh\n[ "$#" -eq 1 ] || exit 2\nprintf "%s\\n" "$1" > "$XDG_CONFIG_HOME/opened-file"\n')
         opener.chmod(0o700)
+        clipboard = bin_dir / "pbcopy"
+        clipboard.write_text('#!/bin/sh\ncat > "$XDG_CONFIG_HOME/copied-text"\n')
+        clipboard.chmod(0o700)
         env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
         node = ["node", str(Path("apps/cli/dist/main.js").resolve())]
         config_dir = path / "rucan"
@@ -164,9 +169,67 @@ def run():
                 exercise_location_name(node, env, project)
                 exercise_ssh_retry(path)
                 exercise_agent_recovery(node, env, agent)
+                exercise_large_paste(node, env)
             finally:
                 agent.terminate()
                 agent.wait(timeout=5)
+
+
+def exercise_large_paste(node, env):
+    repeated = "Large paste — 한글 🙂\n".encode()
+    payload = repeated * 22000
+    digest = hashlib.sha256(payload).hexdigest()
+    session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+    process = subprocess.Popen(
+        node + ["attach", session["id"]], env=env, stdin=slave, stdout=slave, stderr=slave,
+    )
+    try:
+        read_until(master, PALETTE_HINT)
+        os.write(master, b"printf '\\033[?1002h\\033[?1006h\\033[2J\\033[HSELECT-%s\\n' demo\r")
+        read_until(master, b"SELECT-demo")
+        os.write(master, b"\x1b[<0;26;2M\x1b[<32;36;2M\x1b[<0;36;2m")
+        if sys.platform != "darwin":
+            read_until(master, b"\x1b]52;c;" + base64.b64encode(b"SELECT-demo"))
+        read_until(master, b"Copied terminal text")
+        if sys.platform == "darwin":
+            assert (Path(env["XDG_CONFIG_HOME"]) / "copied-text").read_bytes() == b"SELECT-demo"
+        os.write(master, b"printf '\\033[?1002l\\033[?1006l'\r")
+        reader = f"import hashlib, sys; print('\\rPASTE-' + hashlib.sha256(sys.stdin.buffer.read({len(payload)})).hexdigest())"
+        command = f"stty raw -echo; printf 'PASTE-%s\\n' ready; sleep 0.5; python3 -c {shlex.quote(reader)}; stty sane"
+        os.write(master, (command + "\r").encode())
+        read_until(master, b"PASTE-ready")
+        started = time.monotonic()
+        os.set_blocking(master, False)
+        data = memoryview(b"\x1b[200~" + payload + b"\x1b[201~")
+        output = b""
+        while data:
+            if time.monotonic() - started >= 15:
+                raise AssertionError("Large paste did not reach the PTY")
+            readable, writable, _ = select.select([master], [master], [], 0.1)
+            if readable:
+                output = (output + os.read(master, 65536))[-4096:]
+            if writable:
+                try:
+                    data = data[os.write(master, data[:65536]):]
+                except BlockingIOError:
+                    pass
+        os.set_blocking(master, True)
+        marker = ("PASTE-" + digest).encode()
+        if marker not in output:
+            read_until(master, marker)
+        print(f"Verified {len(payload)} pasted bytes in {time.monotonic() - started:.2f}s")
+        choose_action(master, "Close UI")
+        read_until(master, b"\x1b[?1049l")
+        assert process.wait(timeout=5) == 0
+        subprocess.check_call(node + ["kill", session["id"]], env=env)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
 
 
 def exercise_agent_recovery(node, env, agent):
@@ -245,11 +308,11 @@ def exercise_location_name(node, env, project):
         node + ["attach", session["id"]], env=env, stdin=slave, stdout=slave, stderr=slave,
     )
     try:
-        read_until(master, b"[localhost] / project")
+        read_until(master, b"localhost / project")
         os.write(master, b"cd scoped\r")
-        read_until(master, b"[localhost] / scoped")
+        read_until(master, b"localhost / scoped")
         choose_action(master, "Rename workspace")
-        read_until(master, "[localhost] / scoped▏".encode())
+        read_until(master, "localhost / scoped▏".encode())
         os.write(master, b"sh")
         read_until(master, "sh▏".encode())
         os.write(master, b"\r")
@@ -257,6 +320,17 @@ def exercise_location_name(node, env, project):
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         updated = next(entry for entry in sessions if entry["id"] == session["id"])
         assert updated["name"] == "sh" and updated["customName"]
+        os.write(master, b"\x1b")
+        read_until(master, PALETTE_HINT)
+        choose_action(master, "Rename workspace")
+        read_until(master, "sh▏".encode())
+        os.write(master, b"\x7f")
+        read_until(master, " ▏".encode())
+        os.write(master, b"\r")
+        read_until(master, b"localhost / scoped")
+        sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
+        restored = next(entry for entry in sessions if entry["id"] == session["id"])
+        assert restored["name"] == "sh" and not restored["customName"]
         os.write(master, b"\x1b")
         read_until(master, PALETTE_HINT)
         choose_action(master, "Close UI")
@@ -284,7 +358,7 @@ def exercise_workspace_launcher(node, env, path):
         os.write(master, b"\x1b[<0;7;4M\x1b[<0;7;4m")
         read_until(master, "›  localhost".encode())
         os.write(master, b"\r")
-        read_until(master, "›2 ◇ [lo…] / pro".encode())
+        read_until(master, "›2 ◇ loc… / proj".encode())
         os.write(master, b"\x1b[<0;7;5M\x1b[<0;7;5m")
         read_until(master, "SSH · saved-fixture".encode())
         os.write(master, b"saved-fixture")
@@ -296,7 +370,7 @@ def exercise_workspace_launcher(node, env, path):
         os.write(master, b"\x1b[<0;45;9M\x1b[<0;45;9m")
         read_until(master, b"SSH-CONFIG-editor")
         os.write(master, b"save\r")
-        read_until(master, "›3 ◇ [19…] / dem".encode())
+        read_until(master, "›3 ◇ 192… / demo".encode())
         os.write(master, b"\x1b[<0;7;6M\x1b[<0;7;6m")
         read_until(master, "SSH · updated-fixture".encode())
         os.write(master, b"\x1b")
@@ -304,11 +378,11 @@ def exercise_workspace_launcher(node, env, path):
         choose_action(master, "Edit SSH config")
         read_until(master, b"SSH-CONFIG-editor")
         os.write(master, b"exit\r")
-        read_until(master, "›3 ◇ [19…] / dem".encode())
+        read_until(master, "›3 ◇ 192… / demo".encode())
         choose_action(master, "new session")
         read_until(master, "›  localhost".encode())
         os.write(master, b"\r")
-        read_until(master, "›4 ◇ [lo…] / pro".encode())
+        read_until(master, "›4 ◇ loc… / proj".encode())
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         running = [entry for entry in sessions if entry["state"]["type"] == "running"]
         assert sum(entry.get("sshTarget") == "saved-fixture" for entry in running) == 1
@@ -373,7 +447,7 @@ def exercise(node, env):
         assert name + b" v" + number in frame
         assert frame.count(b"v" + number) == 2
         assert "BG○".encode() in frame
-        assert any("[lo…] / pro".encode() in row and b"+" in row for row in frame.split(b"\x1b[2K"))
+        assert any("loc… / proj".encode() in row and b"+" in row for row in frame.split(b"\x1b[2K"))
         for rows, cols, terminal_cols in [(24, 40, 40), (24, 100, 75)]:
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             process.send_signal(signal.SIGWINCH)
@@ -419,7 +493,7 @@ def exercise(node, env):
         os.write(master, b"\x1b:q!\r")
         time.sleep(0.15)
 
-        for label in ("›1 ◆ [lo…] / sco", "›1 ◇ [lo…] / sco", "›1 ◆ [lo…] / sco"):
+        for label in ("›1 ◆ loc… / scop", "›1 ◇ loc… / scop", "›1 ◆ loc… / scop"):
             os.write(master, b"\x1b[<0;20;2M")
             read_until(master, label.encode())
         choose_action(master, "exit")
@@ -612,7 +686,7 @@ def exercise_session_exit(node, env):
         choose_action(master, "next-shell")
         read_until(master, "›3 ◇ next-shell".encode())
         os.write(master, b"\x1b[<0;18;3M")
-        read_until(master, "›4 ◇ [lo…] / sco".encode())
+        read_until(master, "›4 ◇ loc… / scop".encode())
         os.write(master, b"printf 'CLONED-%s\\n' \"${PWD##*/}\"\r")
         read_until(master, b"CLONED-scoped")
         os.write(master, b"\x1b[<0;22;6M\x1b[<0;22;6m")
@@ -643,7 +717,7 @@ def exercise_session_exit(node, env):
         )
         frame = read_until(master, PALETTE_HINT)
         assert b"\x1b[?1049h" in frame
-        assert "›1 ◇ [lo…] / pro".encode() in frame
+        assert "›1 ◇ loc… / proj".encode() in frame
         os.write(master, b"printf 'NEW-%s\\n' ready\r")
         read_until(master, b"NEW-ready")
         foreground = shlex.quote(str(Path(env["XDG_CONFIG_HOME"]) / "foreground/ssh"))
@@ -654,7 +728,7 @@ def exercise_session_exit(node, env):
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         clone = next(item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7" and item["state"]["type"] == "running")
         subprocess.check_call(node + ["kill", clone["id"]], env=env)
-        read_until(master, "›1 ◇ [192.0.2.7]".encode())
+        read_until(master, "›1 ◇ 192.0.2.7".encode())
         os.write(master, b"\x03")
         read_until(master, b"RUCAN-LOCAL>")
         os.write(master, b"printf 'LOCAL-%s\\n' restored\r")
@@ -669,13 +743,13 @@ def exercise_session_exit(node, env):
             node + ["new", "ssh", "ops@192.0.2.7"],
             env=env,
         )
-        read_until(master, " 2 ◇ [192".encode())
+        read_until(master, " 2 ◇ 192".encode())
         choose_action(master, "2")
         read_until(master, b"SSH-ARGV-ok")
         choose_action(master, "1")
-        read_until(master, "›1 ◇ [lo…] / pro".encode())
+        read_until(master, "›1 ◇ loc… / proj".encode())
         os.write(master, b"\x1b[<0;20;4M")
-        frame = read_until(master, "›3 ◇ [19".encode())
+        frame = read_until(master, "›3 ◇ 19".encode())
         sessions = json.loads(subprocess.check_output(node + ["ls"], env=env))
         ssh_sessions = [item for item in sessions if item.get("sshTarget") == "ops@192.0.2.7" and item["state"]["type"] == "running"]
         assert len(ssh_sessions) == 2
@@ -685,7 +759,7 @@ def exercise_session_exit(node, env):
         choose_action(master, "Move sidebar to the right")
         read_until(master, b"[2;76H")
         os.write(master, b"\x1b[<0;82;3M")
-        read_until(master, "›1 ◇ [lo…] / pro".encode())
+        read_until(master, "›1 ◇ loc… / proj".encode())
         os.write(master, b"printf 'RIGHT-%s\\n' ready\r")
         read_until(master, b"RIGHT-ready")
         os.write(master, b"\x1b[<0;93;3M\x1b[<0;93;3m")

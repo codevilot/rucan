@@ -1,17 +1,21 @@
 use crate::terminal::TerminalReplies;
 use portable_pty::{CommandBuilder, ExitStatus, MasterPty, PtySize, native_pty_system};
 use std::error::Error;
-use std::io::{Read, Write};
+use std::io::{Error as IoError, ErrorKind, Read, Write};
 use std::num::NonZeroU16;
-use std::sync::{Arc, Mutex, MutexGuard, mpsc};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use tokio::runtime::Handle;
 use tokio::signal::unix::{SignalKind, signal};
-use tokio::sync::{oneshot, watch};
+use tokio::sync::{mpsc, oneshot, watch};
+use tokio::time::{Duration, timeout};
+
+const MAX_INPUT_BYTES: usize = 32 * 1024;
+const INPUT_QUEUE_SLOTS: usize = 4;
 
 type SessionError = Box<dyn Error + Send + Sync>;
 type OwnedMaster = Box<dyn MasterPty + Send>;
-pub(crate) type PtyInput = Arc<Mutex<Option<mpsc::SyncSender<Vec<u8>>>>>;
+pub(crate) type PtyInput = Arc<Mutex<Option<mpsc::Sender<Vec<u8>>>>>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Persistence {
@@ -85,7 +89,7 @@ impl NativeSession {
         let pair = native_pty_system().openpty(size)?;
         let mut reader = pair.master.try_clone_reader()?;
         let mut writer = pair.master.take_writer()?;
-        let (sender, queued_input) = mpsc::sync_channel::<Vec<u8>>(16);
+        let (sender, mut queued_input) = mpsc::channel::<Vec<u8>>(INPUT_QUEUE_SLOTS);
         let input = Arc::new(Mutex::new(Some(sender)));
         let state = Arc::new(Mutex::new(State {
             terminal: vt100::Parser::new_with_callbacks(
@@ -124,7 +128,7 @@ impl NativeSession {
         thread::Builder::new()
             .name("rucan-pty-write".into())
             .spawn(move || {
-                while let Ok(bytes) = queued_input.recv() {
+                while let Some(bytes) = queued_input.blocking_recv() {
                     if writer.write_all(&bytes).is_err() {
                         break;
                     }
@@ -244,27 +248,51 @@ impl NativeSession {
         lock(&self.state).sequence.subscribe()
     }
 
-    /// Queue input without waiting for a child that stopped reading its PTY.
-    pub fn write_input(&self, bytes: &[u8]) -> Result<(), std::io::Error> {
-        use std::io::{Error, ErrorKind};
-        if bytes.len() > 8192 {
-            return Err(Error::new(
+    fn input_sender(&self, bytes: &[u8]) -> Result<mpsc::Sender<Vec<u8>>, IoError> {
+        if bytes.len() > MAX_INPUT_BYTES {
+            return Err(IoError::new(
                 ErrorKind::InvalidInput,
-                "PTY input chunk exceeds 8192 bytes",
+                "PTY input chunk exceeds 32768 bytes",
             ));
         }
         lock(&self.input)
-            .as_ref()
-            .ok_or_else(|| Error::new(ErrorKind::BrokenPipe, "PTY input closed"))?
+            .clone()
+            .ok_or_else(|| IoError::new(ErrorKind::BrokenPipe, "PTY input closed"))
+    }
+
+    /// Queue input without waiting for a child that stopped reading its PTY.
+    pub fn write_input(&self, bytes: &[u8]) -> Result<(), IoError> {
+        self.input_sender(bytes)?
             .try_send(bytes.to_vec())
             .map_err(|error| match error {
-                mpsc::TrySendError::Full(_) => {
-                    Error::new(ErrorKind::WouldBlock, "PTY input queue full")
+                mpsc::error::TrySendError::Full(_) => {
+                    IoError::new(ErrorKind::WouldBlock, "PTY input queue full")
                 }
-                mpsc::TrySendError::Disconnected(_) => {
-                    Error::new(ErrorKind::BrokenPipe, "PTY input closed")
+                mpsc::error::TrySendError::Closed(_) => {
+                    IoError::new(ErrorKind::BrokenPipe, "PTY input closed")
                 }
             })
+    }
+
+    /// Reserve bounded input space without blocking other agent connections.
+    pub(crate) async fn enqueue_input(
+        &self,
+        bytes: &[u8],
+        owns_lease: impl FnOnce() -> bool,
+    ) -> Result<(), IoError> {
+        let sender = self.input_sender(bytes)?;
+        let permit = timeout(Duration::from_secs(4), sender.reserve())
+            .await
+            .map_err(|_| IoError::new(ErrorKind::WouldBlock, "PTY input queue full"))?
+            .map_err(|_| IoError::new(ErrorKind::BrokenPipe, "PTY input closed"))?;
+        if !owns_lease() {
+            return Err(IoError::new(
+                ErrorKind::PermissionDenied,
+                "attachment does not own the input lease",
+            ));
+        }
+        permit.send(bytes.to_vec());
+        Ok(())
     }
 
     pub fn resize(&self, size: PtySize) -> Result<(), SessionError> {

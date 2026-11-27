@@ -39,7 +39,6 @@ export function workspaceName(
   const destination =
     workspace.location?.host ?? workspace.sshTarget ?? agentHost ?? "localhost";
   const host = destination.split("@").at(-1) ?? destination;
-  const address = "[" + host + "]";
   const path = workspace.location
     ? workspace.location.path
     : workspace.sshTarget
@@ -49,12 +48,12 @@ export function workspaceName(
     path && posix.isAbsolute(path)
       ? (posix.basename(path) || "/").replace(/\p{Cc}/gu, "")
       : undefined;
-  if (!folder) return address;
+  if (!folder) return host;
   const separator = " / ";
-  const full = address + separator + folder;
+  const full = host + separator + folder;
   if (width === undefined || stringWidth(full) <= width) return full;
   if (width < 8) return fit(full, width);
-  const remaining = width - 2 - separator.length;
+  const remaining = width - separator.length;
   const hostLength = stringWidth(host);
   const folderWidth = Math.min(
     stringWidth(folder),
@@ -65,5 +64,5 @@ export function workspaceName(
   const hostWidth = remaining - folderWidth;
   const shortHost =
     hostLength > hostWidth ? fit(host, hostWidth - 1) + "…" : host;
-  return "[" + shortHost + "]" + separator + fit(folder, folderWidth);
+  return shortHost + separator + fit(folder, folderWidth);
 }

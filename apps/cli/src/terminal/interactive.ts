@@ -1,3 +1,4 @@
+import { copyMacText, TextSelection } from "./text-selection.js";
 import { usesLocationName, workspaceName } from "./workspace-name.js";
 import { posix } from "node:path";
 import { availableUpdate, skipUpdate } from "../release/updates.js";
@@ -125,6 +126,7 @@ class InteractiveWorkspace {
   #layout = geometry(process.stdout.rows || 24, process.stdout.columns || 80);
   #mode: Mode = "terminal";
   #textSelection = false;
+  #selection: TextSelection | undefined;
   #closeTarget: NativeWorkspace | undefined;
   #status = "";
   #watchStatus = "";
@@ -202,6 +204,7 @@ class InteractiveWorkspace {
         );
         if (!this.#layout.sidebar) this.#sidebar.cancelDrag();
         this.#paneDrag = undefined;
+        this.#selection = undefined;
         this.#paneDivider = undefined;
         this.#draw();
         await this.#resize();
@@ -600,15 +603,16 @@ class InteractiveWorkspace {
       this.#snapshot?.state !== "running"
     )
       return;
-    for (let offset = 0; offset < bytes.length; offset += 8192) {
+    const limit = this.#client.maxInputBytes;
+    for (let offset = 0; offset < bytes.length; offset += limit) {
       await this.#client.sendInput(
         this.#selected.id,
-        bytes.subarray(offset, offset + 8192),
+        bytes.subarray(offset, offset + limit),
       );
     }
   }
 
-  async #input(event: TerminalInput): Promise<void> {
+  async #input(event: TerminalInput, replayClick = false): Promise<void> {
     if (
       this.#paneDrag &&
       event.type === "bytes" &&
@@ -681,6 +685,7 @@ class InteractiveWorkspace {
         return;
       }
       if (this.#mode !== "terminal") return;
+      if (!replayClick && (await this.#selectTerminalText(event))) return;
       if (await this.#paneMouse(event)) return;
       if (
         event.row === this.#layout.rows &&
@@ -857,6 +862,71 @@ class InteractiveWorkspace {
     this.#draw();
   }
 
+  async #selectTerminalText(
+    event: Extract<TerminalInput, { type: "mouse" }>,
+  ): Promise<boolean> {
+    if (
+      this.#textSelection ||
+      this.#paneDrag ||
+      this.#paneDivider ||
+      this.#sidebar.dragging
+    )
+      return false;
+    const selection = this.#selection;
+    if (selection && event.release && event.button === 0) {
+      this.#selection = undefined;
+      selection.end = event;
+      if (!selection.moved) {
+        await this.#input({ ...event, release: false }, true);
+        await this.#input(event, true);
+      } else {
+        const text = selection
+          .rows()
+          .map(({ text }) => text.trimEnd())
+          .join("\n");
+        if (text) {
+          if (process.platform === "darwin") await copyMacText(text);
+          else this.#screen.copyText(text);
+          this.#status = "Copied terminal text";
+        }
+        this.#draw();
+      }
+      return true;
+    }
+    if (selection && (event.button & 35) === 32) {
+      selection.end = event;
+      this.#draw();
+      return true;
+    }
+    if (event.release || event.button !== 0) return false;
+
+    const { panes } = this.#panes.view(this.#layout);
+    const pane =
+      panes.length > 1
+        ? panes.find((entry) => contains(entry, event.row, event.col))
+        : undefined;
+    if (panes.length > 1 && !pane) return false;
+    const snapshot =
+      !pane || pane.id === this.#selected?.id
+        ? this.#snapshot
+        : this.#paneWatches.snapshot(pane.id);
+    if (!snapshot) return false;
+    const area = pane
+      ? { x: pane.x, y: pane.y + 1, width: pane.width, height: pane.height - 1 }
+      : {
+          x: this.#layout.contentStart + 1,
+          y: 2,
+          width: this.#layout.terminalCols,
+          height: this.#layout.terminalRows,
+        };
+    if (!contains(area, event.row, event.col)) return false;
+    this.#selection = new TextSelection(
+      { ...area, grid: snapshot.grid },
+      event,
+    );
+    return true;
+  }
+
   async #paneMouse(event: MouseEvent): Promise<boolean> {
     const { row, col, button, release } = event;
     const drag = this.#paneDrag;
@@ -993,13 +1063,13 @@ class InteractiveWorkspace {
     if (event.type === "mouse" && event.button === 0 && event.release) {
       const line = this.#screen.paletteLineAt(event.row, event.col);
       if (line === 2) this.#finishRename();
-      if (line === 3 && draft.name.trim()) await this.#rename(draft);
+      if (line === 3) await this.#rename(draft);
     }
     if (event.type !== "bytes") return;
     const key = event.bytes.toString("utf8");
     if (key === "\x1b") this.#finishRename();
     else if (key === "\r") {
-      if (draft.name.trim()) await this.#rename(draft);
+      await this.#rename(draft);
     } else if (key === "\x01") {
       draft.replace = true;
     } else if (key === "\x7f") {
@@ -1026,19 +1096,22 @@ class InteractiveWorkspace {
     if (!workspace) return;
     const renamed = {
       ...workspace,
-      customName: true as const,
+      customName: Boolean(draft.name.trim()),
       ...decodeWorkspace(
         await this.#client.request({
           type: "rename",
           session: draft.id,
-          name: draft.name,
+          name: draft.name.trim() ? draft.name : "",
         }),
       ),
     };
     this.#workspaces = this.#workspaces.map((workspace) =>
       workspace.id === renamed.id ? renamed : workspace,
     );
-    if (this.#selected?.id === renamed.id) this.#selected = renamed;
+    if (this.#selected?.id === renamed.id) {
+      this.#selected = renamed;
+      if (!renamed.customName) await this.#refreshWorkspaceLocation();
+    }
     this.#finishRename();
   }
 
@@ -1139,6 +1212,7 @@ class InteractiveWorkspace {
         directory.canEdit,
       );
     } else if (key === "x") {
+      this.#selection = undefined;
       this.#textSelection = !this.#textSelection;
       this.#mode = "terminal";
     } else if (key === "n") {
@@ -1177,6 +1251,7 @@ class InteractiveWorkspace {
   }
 
   #openPalette(): void {
+    this.#selection = undefined;
     this.#renameDraft = undefined;
     this.#palette = new CommandPalette(
       this.#workspaces,
@@ -1329,6 +1404,8 @@ class InteractiveWorkspace {
             : undefined,
     });
     screen.textSelection = this.#textSelection;
+    if (this.#selection?.moved && this.#mode === "terminal")
+      screen.selectedRows = this.#selection.rows();
     if (this.#textSelection && this.#mode === "terminal")
       screen.footer += " · Text selection";
     if (this.#mode === "terminal") {
