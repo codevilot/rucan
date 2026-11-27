@@ -163,9 +163,72 @@ def run():
                 exercise_session_exit(node, env)
                 exercise_location_name(node, env, project)
                 exercise_ssh_retry(path)
+                exercise_agent_recovery(node, env, agent)
             finally:
                 agent.terminate()
                 agent.wait(timeout=5)
+
+
+def exercise_agent_recovery(node, env, agent):
+    session = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
+    recovery_target = json.loads(subprocess.check_output(node + ["new", "/bin/sh"], env=env))
+    for item, name in ((session, "recovery-main"), (recovery_target, "recovery-target")):
+        subprocess.check_output(node + ["rename", item["id"], name], env=env)
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+    process = subprocess.Popen(
+        node + ["attach", session["id"]], env=env, stdin=slave, stdout=slave, stderr=slave,
+    )
+    try:
+        read_until(master, PALETTE_HINT)
+        os.write(master, b"saved=alive; printf 'BEFORE-%s\\n' \"$saved\"\r")
+        read_until(master, b"BEFORE-alive")
+        agent.send_signal(signal.SIGSTOP)
+        read_until(master, b"Agent unavailable", seconds=18)
+        os.write(master, b"offline=replayed\r")
+        choose_action(master, "recovery-target")
+        read_until(master, b"Workspace switch queued")
+        agent.send_signal(signal.SIGCONT)
+        read_until(master, b"recovery-target", seconds=25)
+        choose_action(master, "recovery-main")
+        read_until(master, b"recovery-main")
+        os.write(master, b"printf 'AFTER-%s-%s\\n' \"$saved\" \"${offline:-clear}\"\r")
+        read_until(master, b"AFTER-alive-clear")
+        verify_read_only_recovers(node, env, session["id"], process, master)
+        for item in (session, recovery_target):
+            subprocess.check_call(node + ["kill", item["id"]], env=env)
+    finally:
+        agent.send_signal(signal.SIGCONT)
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
+
+
+def verify_read_only_recovers(node, env, session_id, controller, controller_pty):
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+    viewer = subprocess.Popen(
+        node + ["attach", session_id], env=env, stdin=slave, stdout=slave, stderr=slave,
+    )
+    try:
+        read_until(master, b"waiting for the other client to release input")
+        choose_action(controller_pty, "Close UI")
+        read_until(controller_pty, b"\x1b[?1049l")
+        assert controller.wait(timeout=5) == 0
+        read_until(master, b"Local agent connected")
+        os.write(master, b"printf 'LEASE-%s\\n' \"$saved\"\r")
+        read_until(master, b"LEASE-alive")
+        choose_action(master, "Close UI")
+        read_until(master, b"\x1b[?1049l")
+        assert viewer.wait(timeout=5) == 0
+    finally:
+        if viewer.poll() is None:
+            viewer.kill()
+            viewer.wait(timeout=5)
+        os.close(master)
+        os.close(slave)
 
 
 def exercise_location_name(node, env, project):

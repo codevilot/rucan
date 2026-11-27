@@ -19,6 +19,8 @@ Quit Rucan closes the UI immediately and applies `defaults.on_exit`. The default
 
 Remote process survival depends on SSH detach and the host's user process cleanup policy. Detect unsupported environments and report them to the user. System policies require administrator control.
 
+After an agent request times out, the UI keeps the last screen visible and retries the connection with a capped delay. When the agent responds, the UI reacquires the input lease and refreshes the terminal. Input entered while disconnected is discarded. A workspace selected from the sidebar or palette while disconnected opens when the agent returns. A read-only view checks for the lease periodically and takes it once the current controller releases it. An interrupted output watch also retries and requests a new full snapshot when it reconnects.
+
 ## Local native agent
 
 The local agent now owns native PTYs across Unix socket connections. The first controller owns the input and resize lease, and later connections can observe. Closing the controlling connection releases its lease while preserving the running child. Temporary and persistent sessions both survive disconnect. Startup lock ownership prevents competing agents from claiming the same private socket.

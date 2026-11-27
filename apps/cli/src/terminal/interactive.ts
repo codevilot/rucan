@@ -7,7 +7,6 @@ import { isViewableFile, openLocalFile } from "../explorer/open-file.js";
 import { localForegroundSsh } from "./local-foreground-ssh.js";
 import { workingDirectories } from "./working-directories.js";
 import { workspaceDirectory } from "../explorer/workspace-directory.js";
-import { setTimeout as delay } from "node:timers/promises";
 import { connectRemoteAgent } from "../agent/ssh.js";
 import { connectLocalAgent } from "../agent/local.js";
 import { ensureUserSshConfig, sshAliases } from "../agent/ssh-aliases.js";
@@ -127,6 +126,10 @@ class InteractiveWorkspace {
   #mode: Mode = "terminal";
   #closeTarget: NativeWorkspace | undefined;
   #status = "";
+  #watchStatus = "";
+  #pendingWorkspace: string | undefined;
+  #retryControlAt = 0;
+  #retryControlDelay = 2000;
   #update: string | undefined;
   #result: WorkspaceResult | undefined;
   #hosts: (string | undefined)[] = [];
@@ -227,7 +230,13 @@ class InteractiveWorkspace {
       });
       this.#draw();
       stopRefresh = watchWorkspaceList(() =>
-        this.#enqueue(() => this.#refreshWorkspaces()),
+        this.#enqueue(async () => {
+          if (this.#client.closed) await this.#recoverControl();
+          else {
+            await this.#refreshWorkspaces();
+            await this.#tryInputLease();
+          }
+        }),
       );
       if (this.#config.updates.check_on_startup) {
         void availableUpdate()
@@ -266,9 +275,13 @@ class InteractiveWorkspace {
       try {
         await task();
       } catch (error) {
-        this.#status = error instanceof Error ? error.message : String(error);
+        if (this.#client.closed) {
+          this.#controlsInput = false;
+          this.#status = "Agent disconnected · reconnecting";
+        } else {
+          this.#status = error instanceof Error ? error.message : String(error);
+        }
         this.#draw();
-        if (this.#client.closed && !this.#stopped) await this.#recoverControl();
       }
     });
     return this.#jobs;
@@ -323,9 +336,20 @@ class InteractiveWorkspace {
 
   async #select(workspace: NativeWorkspace, render = true): Promise<void> {
     const previous = this.#selected;
-    const controls = hasLease(
-      await this.#client.request({ type: "attach", session: workspace.id }),
-    );
+    let controls: boolean;
+    try {
+      if (this.#client.closed && previous) {
+        this.#queueWorkspace(workspace.id);
+        return;
+      }
+      controls = hasLease(
+        await this.#client.request({ type: "attach", session: workspace.id }),
+      );
+    } catch (error) {
+      if (!this.#client.closed || !previous) throw error;
+      this.#queueWorkspace(workspace.id);
+      return;
+    }
     this.#panes.select(workspace.id, previous?.id);
     if (
       previous &&
@@ -334,9 +358,12 @@ class InteractiveWorkspace {
     )
       await this.#client.request({ type: "detach", session: previous.id });
     this.#watcher.stop();
+    this.#watchStatus = "";
     this.#selected = workspace;
     this.#controlsInput = controls;
-    this.#status = controls ? "" : "Read-only · input held by another client";
+    this.#status = controls
+      ? ""
+      : "Read-only · waiting for the other client to release input";
     this.#snapshot = decodeSnapshot(
       await this.#client.request({ type: "snapshot", session: workspace.id }),
     );
@@ -350,6 +377,7 @@ class InteractiveWorkspace {
       workspace.id,
       this.#snapshot,
       (snapshot) => {
+        this.#watchStatus = "";
         if (snapshot.state !== "running") {
           void this.#enqueue(() => this.#refreshWorkspaces(workspace.id));
           return;
@@ -357,8 +385,8 @@ class InteractiveWorkspace {
         this.#snapshot = snapshot;
         this.#draw();
       },
-      (error) => {
-        this.#status = error instanceof Error ? error.message : String(error);
+      () => {
+        this.#watchStatus = "Terminal output interrupted · reconnecting";
         this.#draw();
       },
     );
@@ -462,27 +490,63 @@ class InteractiveWorkspace {
       this.#draw();
   }
 
-  async #recoverControl(): Promise<void> {
+  #queueWorkspace(id: string): void {
+    this.#pendingWorkspace = id;
+    this.#controlsInput = false;
+    this.#status = "Workspace switch queued · reconnecting";
+    this.#draw();
+  }
+
+  async #tryInputLease(): Promise<void> {
     const selected = this.#selected;
-    for (const wait of [150, 350, 900]) {
-      if (this.#stopped) return;
-      await delay(wait);
-      try {
-        const client = await this.#connect();
-        if (this.#stopped) {
-          client.close();
-          return;
-        }
-        this.#client = client;
-        this.#paneWatches.stop();
-        if (selected) await this.#select(selected);
+    if (this.#stopped || this.#controlsInput || !selected) return;
+    this.#controlsInput = hasLease(
+      await this.#client.request({ type: "attach", session: selected.id }),
+    );
+    if (this.#controlsInput) {
+      this.#status = "";
+      await this.#resize();
+      this.#draw();
+    }
+  }
+
+  async #recoverControl(): Promise<void> {
+    if (this.#stopped || Date.now() < this.#retryControlAt) return;
+    const selected = this.#selected;
+    this.#controlsInput = false;
+    this.#status = "Agent disconnected · reconnecting";
+    this.#draw();
+    try {
+      const client = await this.#connect();
+      if (this.#stopped) {
+        client.close();
         return;
-      } catch (error) {
-        this.#client.close();
-        if (this.#stopped) return;
-        this.#status = error instanceof Error ? error.message : String(error);
-        this.#draw();
       }
+      this.#client = client;
+      this.#paneWatches.stop();
+      await this.#refreshWorkspaces(undefined, false);
+      const pending = this.#workspaces.find(
+        ({ id }) => id === this.#pendingWorkspace,
+      );
+      this.#pendingWorkspace = undefined;
+      if (!this.#stopped) {
+        if (pending) await this.#select(pending);
+        else if (selected && this.#selected?.id === selected.id)
+          await this.#select(this.#selected);
+      }
+      if (this.#client.closed)
+        throw new Error("Agent disconnected during attachment");
+      this.#retryControlAt = 0;
+      this.#retryControlDelay = 2000;
+      this.#draw();
+    } catch {
+      this.#client.close();
+      if (this.#stopped) return;
+      this.#controlsInput = false;
+      this.#retryControlAt = Date.now() + this.#retryControlDelay;
+      this.#retryControlDelay = Math.min(this.#retryControlDelay * 2, 15000);
+      this.#status = "Agent unavailable · retrying automatically";
+      this.#draw();
     }
   }
 
@@ -525,6 +589,7 @@ class InteractiveWorkspace {
 
   async #forward(bytes: Buffer): Promise<void> {
     if (
+      this.#client.closed ||
       !this.#controlsInput ||
       !this.#selected ||
       this.#snapshot?.state !== "running"
@@ -1222,7 +1287,10 @@ class InteractiveWorkspace {
       config: this.#config,
       mode: this.#mode,
       host: this.#host,
-      status: this.#status,
+      status:
+        this.#pendingWorkspace && this.#client.closed
+          ? "Workspace switch queued · reconnecting"
+          : this.#status || this.#watchStatus,
       update: this.#update,
       layout: this.#layout,
       resizingSidebar: this.#sidebar.dragging,
