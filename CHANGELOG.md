@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.27
+
+- Dismiss workspace dialogs with an outside click without activating controls underneath.
+
 ## 0.1.26
 
 - Batch large pastes and wait for space in the PTY input queue.

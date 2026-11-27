@@ -125,6 +125,7 @@ class InteractiveWorkspace {
   readonly #explorer: Explorer;
   #layout = geometry(process.stdout.rows || 24, process.stdout.columns || 80);
   #mode: Mode = "terminal";
+  #outsideModalPress = false;
   #textSelection = false;
   #selection: TextSelection | undefined;
   #closeTarget: NativeWorkspace | undefined;
@@ -621,6 +622,22 @@ class InteractiveWorkspace {
       this.#paneDrag = undefined;
       this.#draw();
       return;
+    }
+    if (event.type === "mouse" && event.button === 0) {
+      const outside = this.#screen.outsidePalette(event.row, event.col);
+      if (!event.release) this.#outsideModalPress = outside;
+      else if (this.#outsideModalPress) {
+        this.#outsideModalPress = false;
+        if (outside) {
+          this.#renameDraft = undefined;
+          this.#closeTarget = undefined;
+          this.#launcher = undefined;
+          this.#palette = undefined;
+          this.#mode = "terminal";
+          this.#draw();
+        }
+        return;
+      }
     }
     if (this.#mode === "rename" && this.#renameDraft) {
       await this.#renameInput(this.#renameDraft, event);

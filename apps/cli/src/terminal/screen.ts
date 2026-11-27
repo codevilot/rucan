@@ -104,6 +104,15 @@ export class Screen {
   }
 
   paletteLineAt(row: number, col: number): number | undefined {
+    const hit = this.#paletteHit(row, col);
+    return typeof hit === "number" ? hit : undefined;
+  }
+
+  outsidePalette(row: number, col: number): boolean {
+    return this.#paletteHit(row, col) === "outside";
+  }
+
+  #paletteHit(row: number, col: number): number | "outside" | undefined {
     const painted = this.#painted;
     if (this.#blocked || painted !== this.#latest || !painted?.paletteLines)
       return undefined;
@@ -116,7 +125,7 @@ export class Screen {
       line >= 0 &&
       line < painted.paletteLines.length
       ? line
-      : undefined;
+      : "outside";
   }
 
   #onDrain = (): void => {
